@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCKDASHBOARD
+MAC INVESTING LLC STOCK DASHBOARD 1.0
 
 HTML
 <!DOCTYPE html>
@@ -108,7 +108,6 @@ HTML
                         const range = isIntraday ? '5d' : '1y';
                         const cb = Math.floor(Date.now() / 60000);
                         
-                        // Added includePrePost=true to pull pre-market metrics
                         const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
                         const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
                         
@@ -125,7 +124,7 @@ HTML
                                 h: indicators.high,
                                 l: indicators.low,
                                 v: indicators.volume,
-                                meta: result.meta // Exposed meta to access session blocks
+                                meta: result.meta 
                             });
                         } else {
                             resolve(null);
@@ -227,7 +226,6 @@ HTML
                     
                     for (let i = 0; i < intradayCandles.t.length; i++) {
                         const time = intradayCandles.t[i];
-                        // Filter for only the current day's pre-market session
                         if (time >= pre.start && time < pre.end) {
                             if (intradayCandles.h[i] > preHigh) preHigh = intradayCandles.h[i];
                             if (intradayCandles.l[i] < preLow) preLow = intradayCandles.l[i];
@@ -252,7 +250,7 @@ HTML
                 }
             }
 
-            // --- VWAP CALCULATION & DT GO LONG RANGE SIGNAL ---
+            // --- VWAP CALCULATION & DAY TRADE BUY Range SIGNAL ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
             let dtSignalHTML = '';
 
@@ -262,7 +260,6 @@ HTML
                 let cumVol = 0;
 
                 if (regular && regular.start && regular.end) {
-                    // Isolate today's regular trading hours for standard VWAP
                     for (let i = 0; i < intradayCandles.t.length; i++) {
                         const time = intradayCandles.t[i];
                         if (time >= regular.start && time < regular.end) {
@@ -275,7 +272,6 @@ HTML
                         }
                     }
                 } else {
-                    // Fallback
                     const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
                     const currentDayStartIndex = intradayCandles.t.findIndex(time => new Date(time * 1000).toDateString() === lastCandleDate);
                     if (currentDayStartIndex !== -1) {
@@ -297,7 +293,7 @@ HTML
                     const vLabel = isAbove ? '▲ ABOVE' : '▼ BELOW';
                     
                     if (!isAbove) {
-                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider uppercase animate-pulse">DT Go Long Range</span>`;
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse">DAY TRADE BUY Range</span>`;
                     }
 
                     vwapHTML = `
@@ -400,7 +396,6 @@ HTML
 
                 ${preMarketHTML}
 
-                <!-- Interday VWAP Box with DT Go Long Range indicator -->
                 <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full">
                     <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Interday VWAP</span>
                     ${dtSignalHTML}
