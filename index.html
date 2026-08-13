@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 1.0
+MAC INVESTING LLC STOCK DASHBOARD 2.0
 
 HTML
 <!DOCTYPE html>
@@ -6,7 +6,7 @@ HTML
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sector Matrix Dashboard Pro</title>
+    <title>Sector Matrix Dashboard Pro - View 2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -21,10 +21,6 @@ HTML
 
         .card-transition { transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .card-transition:hover { transform: translateY(-4px); }
-        
-        .news-scroll::-webkit-scrollbar { width: 4px; }
-        .news-scroll::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); }
-        .news-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
     </style>
 </head>
 <body class="p-2 sm:p-4 font-sans antialiased w-full">
@@ -34,7 +30,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Dual-API Engine: Finnhub (Quotes/News) + Yahoo Finance (History/VWAP/Pre-Market)</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: Price Action & Consensus Metrics</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -58,29 +54,15 @@ HTML
             "Computer Hardware & Peripherals": ["NTAP", "DELL", "SIMO", "LNVGY", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
             "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
-            "Semiconductor Equipment & Materials": ["KLAC", "LRCX", "AMAT", "ATEYY", "AEHR", "ENTG", "ASML", "TER"],
-            "Electronic Semiconductor MFG": ["TSEM", "ASX", "TSM", "MTSI", "UMC"],
+            "Semiconductor Equipment & Materials": ["KLAC", "LRCX", "AMAT", "AXTI", "AEHR", "ENTG", "AMKR", "TER", "UCTT", "Q", "ASML", "VECO", "ICHR", "FORM", "ONTO", "KLIC", "ACMR", "PLAB", "TRT", "ATEYY", "COHU", "TOELY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["MSFT", "AMZN", "ORCL", "IBM", "CRM", "GOOGL"],
             "Data Center Hardware & Infrastructure Suppliers": ["NVDA", "VRT", "AVGO"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN", "VRT"],
             "Elec-Semiconductor Fablss Group": ["AMD", "CRDO", "NVDA", "MRVL", "ARM"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "SMR", "REX", "FCEL"],
-            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
-            "Industrials - Enterprise Group:": ["CAT", "GE", "GE", "CSTM", "KALU"],
-            "Consumer Discresionary - Enterprise Group:": ["BBY", "F", "WSM", "GPC", "RCL"],
-            "Healthcare - Enterprise Group:": ["REPL", "P3", "FBRX", "Q32", "TTRX"]
+            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"]
         };
-
-        function getDates() {
-            const today = new Date();
-            const past = new Date();
-            past.setDate(today.getDate() - 5); 
-            const formatDate = (date) => date.toISOString().split('T')[0];
-            return { to: formatDate(today), from: formatDate(past) };
-        }
-
-        const dates = getDates();
 
         let totalSymbols = 0;
         let loadedSymbols = 0;
@@ -155,7 +137,7 @@ HTML
                 `;
                 for (const symbol of symbols) {
                     htmlContent += `
-                        <div id="card-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[450px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[420px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -176,16 +158,16 @@ HTML
         }
 
         async function loadStockData(symbol) {
-            const [profile, quote, news, recs, dailyCandles, intradayCandles] = await Promise.all([
+            // Removed the news API call for faster loading
+            const [profile, quote, recs, dailyCandles, intradayCandles] = await Promise.all([
                 enqueueAPI('finnhub', `/stock/profile2?symbol=${symbol}`),
                 enqueueAPI('finnhub', `/quote?symbol=${symbol}`),
-                enqueueAPI('finnhub', `/company-news?symbol=${symbol}&from=${dates.from}&to=${dates.to}`),
                 enqueueAPI('finnhub', `/stock/recommendation?symbol=${symbol}`),
                 enqueueAPI('yahoo', { symbol: symbol, isIntraday: false }),
                 enqueueAPI('yahoo', { symbol: symbol, isIntraday: true })
             ]);
 
-            renderCard(symbol, profile, quote, news, recs, dailyCandles, intradayCandles);
+            renderCard(symbol, profile, quote, recs, dailyCandles, intradayCandles);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -199,7 +181,7 @@ HTML
             }
         }
 
-        function renderCard(symbol, profile, quote, news, recs, dailyCandles, intradayCandles) {
+        function renderCard(symbol, profile, quote, recs, dailyCandles, intradayCandles) {
             const currentPrice = quote?.c || 0;
             const openPrice = quote?.o || 0;
             const cardEl = document.getElementById(`card-${symbol}`);
@@ -354,17 +336,6 @@ HTML
                 histHTML = `<div class="text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">Historical data unavailable</div>`;
             }
 
-            const topNews = (news || []).slice(0, 5);
-            let newsHTML = topNews.map(n => `
-                <li class="mb-1.5 flex items-start">
-                    <span class="text-cyan-500 mr-2 text-xs">◆</span>
-                    <a href="${n.url}" target="_blank" class="text-slate-300 hover:text-cyan-400 transition-colors line-clamp-2 text-xs leading-tight">
-                        ${n.headline}
-                    </a>
-                </li>
-            `).join('');
-            if (!newsHTML) newsHTML = `<li class="text-slate-500 text-xs italic">No recent news available.</li>`;
-
             const latestRec = (recs && recs.length > 0) ? recs[0] : { buy: 0, strongBuy: 0, hold: 0, sell: 0, strongSell: 0 };
             const totalBuy = (latestRec.buy || 0) + (latestRec.strongBuy || 0);
             const totalHold = latestRec.hold || 0;
@@ -408,30 +379,22 @@ HTML
                     </div>
                 </div>
 
-                <div class="flex flex-col xl:flex-row gap-4 mt-auto h-full">
-                    <div class="xl:w-1/3 flex flex-col justify-start">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-700 pb-1">Consensus</h4>
-                        <div class="flex flex-col space-y-1.5 text-[11px] font-bold w-full">
-                            <div class="flex justify-between items-center bg-green-900/20 border border-green-500/20 text-green-400 px-2 py-1.5 rounded">
-                                <span>BUY</span>
-                                <span class="bg-green-500/20 px-1.5 py-0.5 rounded text-green-300">${totalBuy}</span>
-                            </div>
-                            <div class="flex justify-between items-center bg-yellow-900/20 border border-yellow-500/20 text-yellow-400 px-2 py-1.5 rounded">
-                                <span>HOLD</span>
-                                <span class="bg-yellow-500/20 px-1.5 py-0.5 rounded text-yellow-300">${totalHold}</span>
-                            </div>
-                            <div class="flex justify-between items-center bg-red-900/20 border border-red-500/20 text-red-400 px-2 py-1.5 rounded">
-                                <span>SELL</span>
-                                <span class="bg-red-500/20 px-1.5 py-0.5 rounded text-red-300">${totalSell}</span>
-                            </div>
+                <!-- Consensus Block - Expanded Horizontally -->
+                <div class="flex flex-col mt-auto h-full justify-end">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-700 pb-1">Analyst Consensus</h4>
+                    <div class="grid grid-cols-3 gap-2 text-[11px] font-bold w-full">
+                        <div class="flex flex-col justify-center items-center bg-green-900/20 border border-green-500/20 text-green-400 p-2 rounded">
+                            <span class="mb-1">BUY</span>
+                            <span class="bg-green-500/20 px-2 py-0.5 rounded text-green-300 text-sm">${totalBuy}</span>
                         </div>
-                    </div>
-                    
-                    <div class="xl:w-2/3 flex flex-col justify-start h-full">
-                        <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-700 pb-1">Recent News</h4>
-                        <ul class="news-scroll overflow-y-auto max-h-[100px] pr-1">
-                            ${newsHTML}
-                        </ul>
+                        <div class="flex flex-col justify-center items-center bg-yellow-900/20 border border-yellow-500/20 text-yellow-400 p-2 rounded">
+                            <span class="mb-1">HOLD</span>
+                            <span class="bg-yellow-500/20 px-2 py-0.5 rounded text-yellow-300 text-sm">${totalHold}</span>
+                        </div>
+                        <div class="flex flex-col justify-center items-center bg-red-900/20 border border-red-500/20 text-red-400 p-2 rounded">
+                            <span class="mb-1">SELL</span>
+                            <span class="bg-red-500/20 px-2 py-0.5 rounded text-red-300 text-sm">${totalSell}</span>
+                        </div>
                     </div>
                 </div>
             `;
