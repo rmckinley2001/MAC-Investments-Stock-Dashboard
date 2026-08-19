@@ -1,6 +1,5 @@
 MAC INVESTING LLC STOCK DASHBOARD 3.0
 
-HTML
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,7 +50,7 @@ HTML
         
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
-            "Financial Excange Traded Fund": ["SPY", "QQQ"],
+            "Financial Exchange Traded Fund": ["SPY", "QQQ"],
             "Computer Hardware & Peripherals": ["NTAP", "DELL", "SIMO", "LNVGY", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
             "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
@@ -143,14 +142,18 @@ HTML
             let htmlContent = '';
 
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
+                // Create a unique group ID for the HTML elements (strips out spaces and special characters)
+                const safeGroupId = groupName.replace(/\W/g, '');
+                
                 htmlContent += `
                     <div>
                         <h2 class="text-xl md:text-2xl font-bold text-slate-200 border-b border-slate-700/80 pb-2 mb-6 uppercase tracking-wider pl-2 border-l-4 border-l-cyan-500 rounded-sm bg-gradient-to-r from-slate-800/50 to-transparent">${groupName}</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
                 `;
                 for (const symbol of symbols) {
+                    // Added safeGroupId to ensure Duplicate stocks in different categories render correctly
                     htmlContent += `
-                        <div id="card-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[320px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[320px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -165,13 +168,13 @@ HTML
 
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
                 for (const symbol of symbols) {
-                    loadStockData(symbol);
+                    loadStockData(symbol, groupName);
                 }
             }
         }
 
-        async function loadStockData(symbol) {
-            // Check cache for profile. If missing, queue it and save it.
+        // Updated signature to pass the groupName down the chain
+        async function loadStockData(symbol, groupName) {
             let profilePromise;
             if (profileCache[symbol]) {
                 profilePromise = Promise.resolve(profileCache[symbol]);
@@ -182,7 +185,6 @@ HTML
                 });
             }
 
-            // Execute parallel loading (Yahoo runs instantly alongside queued Finnhub)
             const [profile, quote, dailyCandles, intradayCandles] = await Promise.all([
                 profilePromise,
                 enqueueFinnhub(`/quote?symbol=${symbol}`),
@@ -190,7 +192,7 @@ HTML
                 fetchYahooDirect(symbol, true)
             ]);
 
-            renderCard(symbol, profile, quote, dailyCandles, intradayCandles);
+            renderCard(symbol, profile, quote, dailyCandles, intradayCandles, groupName);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -204,10 +206,13 @@ HTML
             }
         }
 
-        function renderCard(symbol, profile, quote, dailyCandles, intradayCandles) {
+        // Updated signature to receive groupName and target the unique ID
+        function renderCard(symbol, profile, quote, dailyCandles, intradayCandles, groupName) {
             const currentPrice = quote?.c || 0;
             const openPrice = quote?.o || 0;
-            const cardEl = document.getElementById(`card-${symbol}`);
+            const safeGroupId = groupName.replace(/\W/g, '');
+            const cardEl = document.getElementById(`card-${safeGroupId}-${symbol}`);
+            
             if (!cardEl) return;
 
             let shadowClass = 'shadow-yellow';
@@ -421,7 +426,7 @@ HTML
                 loadedSymbols = 0;
                 for (const [groupName, symbols] of Object.entries(stockGroups)) {
                     for (const symbol of symbols) {
-                        loadStockData(symbol);
+                        loadStockData(symbol, groupName);
                     }
                 }
             }
