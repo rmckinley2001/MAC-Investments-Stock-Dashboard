@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 2.0
+MAC INVESTING LLC STOCK DASHBOARD 3.0
 
 HTML
 <!DOCTYPE html>
@@ -30,7 +30,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: Price Action & Consensus Metrics</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: Finnhub (Throttled & Cached) + Yahoo Finance (Parallel)</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -53,76 +53,82 @@ HTML
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Computer Hardware & Peripherals": ["NTAP", "DELL", "SIMO", "LNVGY", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
             "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
-            "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "TLN"],
+            "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
             "Semiconductor Equipment & Materials": ["KLAC", "LRCX", "AMAT", "AXTI", "AEHR", "ENTG", "AMKR", "TER", "UCTT", "Q", "ASML", "VECO", "ICHR", "FORM", "ONTO", "KLIC", "ACMR", "PLAB", "TRT", "ATEYY", "COHU", "TOELY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["MSFT", "AMZN", "ORCL", "IBM", "CRM", "GOOGL"],
-            "Data Center Hardware & Infrastructure Suppliers": ["VRT", "AVGO"],
+            "Data Center Hardware & Infrastructure Suppliers": ["NVDA", "VRT", "AVGO"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN", "VRT"],
-            "Elec-Semiconductor Fablss Group": ["AMD", "CRDO", "MRVL", "ARM"],
+            "Elec-Semiconductor Fablss Group": ["AMD", "CRDO", "NVDA", "MRVL", "ARM"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "SMR", "REX", "FCEL"],
-            "Computer Software - Enterprise Group:": ["DDOG", "NET", "SNOW", "PLTR"]
+            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"]
         };
 
         let totalSymbols = 0;
         let loadedSymbols = 0;
         for (const syms of Object.values(stockGroups)) totalSymbols += syms.length;
 
-        // --- DUAL API QUEUE ENGINE ---
-        const apiQueue = [];
-        let isProcessingQueue = false;
+        // --- CACHE LAYER ---
+        const profileCache = {};
 
-        function enqueueAPI(type, payload) {
+        // --- OPTIMIZATION 1: FINNHUB STRICT QUEUE ---
+        const finnhubQueue = [];
+        let isProcessingFinnhub = false;
+
+        function enqueueFinnhub(endpoint) {
             return new Promise((resolve) => {
-                apiQueue.push({ type, payload, resolve });
-                if (!isProcessingQueue) processQueue();
+                finnhubQueue.push({ endpoint, resolve });
+                if (!isProcessingFinnhub) processFinnhubQueue();
             });
         }
 
-        async function processQueue() {
-            isProcessingQueue = true;
-            while (apiQueue.length > 0) {
-                const { type, payload, resolve } = apiQueue.shift();
+        async function processFinnhubQueue() {
+            isProcessingFinnhub = true;
+            while (finnhubQueue.length > 0) {
+                const { endpoint, resolve } = finnhubQueue.shift();
                 try {
-                    if (type === 'finnhub') {
-                        const response = await fetch(`https://finnhub.io/api/v1${payload}&token=${API_KEY}`);
-                        resolve(response.ok ? await response.json() : null);
-                        
-                    } else if (type === 'yahoo') {
-                        const { symbol, isIntraday } = payload;
-                        const interval = isIntraday ? '15m' : '1d';
-                        const range = isIntraday ? '5d' : '1y';
-                        const cb = Math.floor(Date.now() / 60000);
-                        
-                        const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
-                        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
-                        
-                        const response = await fetch(proxyUrl);
-                        const data = response.ok ? await response.json() : null;
-                        
-                        if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
-                            const result = data.chart.result[0];
-                            const indicators = result.indicators.quote[0];
-                            resolve({
-                                s: 'ok',
-                                t: result.timestamp,
-                                c: indicators.close,
-                                h: indicators.high,
-                                l: indicators.low,
-                                v: indicators.volume,
-                                meta: result.meta 
-                            });
-                        } else {
-                            resolve(null);
-                        }
-                    }
+                    const response = await fetch(`https://finnhub.io/api/v1${endpoint}&token=${API_KEY}`);
+                    resolve(response.ok ? await response.json() : null);
                 } catch (e) {
-                    console.error("API Error:", e);
+                    console.error("Finnhub API Error:", e);
                     resolve(null);
                 }
-                await new Promise(r => setTimeout(r, 800)); 
+                // 1050ms delay perfectly aligns with Finnhub 60/min limit
+                await new Promise(r => setTimeout(r, 1050)); 
             }
-            isProcessingQueue = false;
+            isProcessingFinnhub = false;
+        }
+
+        // --- OPTIMIZATION 2: YAHOO PARALLEL BYPASS ---
+        async function fetchYahooDirect(symbol, isIntraday) {
+            const interval = isIntraday ? '15m' : '1d';
+            const range = isIntraday ? '5d' : '1y';
+            const cb = Date.now(); // Cache-buster for true 5m freshness
+            
+            const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
+            const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
+            
+            try {
+                const response = await fetch(proxyUrl);
+                const data = response.ok ? await response.json() : null;
+                
+                if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
+                    const result = data.chart.result[0];
+                    const indicators = result.indicators.quote[0];
+                    return {
+                        s: 'ok',
+                        t: result.timestamp,
+                        c: indicators.close,
+                        h: indicators.high,
+                        l: indicators.low,
+                        v: indicators.volume,
+                        meta: result.meta 
+                    };
+                }
+            } catch (e) {
+                console.error("Yahoo API Error:", e);
+            }
+            return null;
         }
 
         function initializeUI() {
@@ -137,7 +143,7 @@ HTML
                 `;
                 for (const symbol of symbols) {
                     htmlContent += `
-                        <div id="card-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[420px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[320px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -158,16 +164,26 @@ HTML
         }
 
         async function loadStockData(symbol) {
-            // Removed the news API call for faster loading
-            const [profile, quote, recs, dailyCandles, intradayCandles] = await Promise.all([
-                enqueueAPI('finnhub', `/stock/profile2?symbol=${symbol}`),
-                enqueueAPI('finnhub', `/quote?symbol=${symbol}`),
-                enqueueAPI('finnhub', `/stock/recommendation?symbol=${symbol}`),
-                enqueueAPI('yahoo', { symbol: symbol, isIntraday: false }),
-                enqueueAPI('yahoo', { symbol: symbol, isIntraday: true })
+            // Check cache for profile. If missing, queue it and save it.
+            let profilePromise;
+            if (profileCache[symbol]) {
+                profilePromise = Promise.resolve(profileCache[symbol]);
+            } else {
+                profilePromise = enqueueFinnhub(`/stock/profile2?symbol=${symbol}`).then(data => {
+                    if (data) profileCache[symbol] = data;
+                    return data;
+                });
+            }
+
+            // Execute parallel loading (Yahoo runs instantly alongside queued Finnhub)
+            const [profile, quote, dailyCandles, intradayCandles] = await Promise.all([
+                profilePromise,
+                enqueueFinnhub(`/quote?symbol=${symbol}`),
+                fetchYahooDirect(symbol, false),
+                fetchYahooDirect(symbol, true)
             ]);
 
-            renderCard(symbol, profile, quote, recs, dailyCandles, intradayCandles);
+            renderCard(symbol, profile, quote, dailyCandles, intradayCandles);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -181,7 +197,7 @@ HTML
             }
         }
 
-        function renderCard(symbol, profile, quote, recs, dailyCandles, intradayCandles) {
+        function renderCard(symbol, profile, quote, dailyCandles, intradayCandles) {
             const currentPrice = quote?.c || 0;
             const openPrice = quote?.o || 0;
             const cardEl = document.getElementById(`card-${symbol}`);
@@ -201,7 +217,10 @@ HTML
                 arrowColor = 'text-red-400';
             }
 
-            // --- PRE-MARKET HIGH/LOW/CLOSE EXTRACTION ---
+            const priceDiff = currentPrice - openPrice;
+            const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
+            const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
+
             let preMarketHTML = '';
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.meta) {
                 const pre = intradayCandles.meta.currentTradingPeriod?.pre;
@@ -236,38 +255,27 @@ HTML
                 }
             }
 
-            // --- VWAP CALCULATION & DAY TRADE BUY Range SIGNAL ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
             let dtSignalHTML = '';
 
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
-                const regular = intradayCandles.meta?.currentTradingPeriod?.regular;
+                const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
+                
                 let cumVolPrice = 0;
                 let cumVol = 0;
 
-                if (regular && regular.start && regular.end) {
-                    for (let i = 0; i < intradayCandles.t.length; i++) {
-                        const time = intradayCandles.t[i];
-                        if (time >= regular.start && time < regular.end) {
-                            const typicalPrice = (intradayCandles.h[i] + intradayCandles.l[i] + intradayCandles.c[i]) / 3;
-                            const volume = intradayCandles.v[i];
-                            if (volume > 0) {
-                                cumVolPrice += typicalPrice * volume;
-                                cumVol += volume;
-                            }
-                        }
-                    }
-                } else {
-                    const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
-                    const currentDayStartIndex = intradayCandles.t.findIndex(time => new Date(time * 1000).toDateString() === lastCandleDate);
-                    if (currentDayStartIndex !== -1) {
-                         for (let i = currentDayStartIndex; i < intradayCandles.t.length; i++) {
-                            const typicalPrice = (intradayCandles.h[i] + intradayCandles.l[i] + intradayCandles.c[i]) / 3;
-                            const volume = intradayCandles.v[i];
-                            if (volume > 0) {
-                                cumVolPrice += typicalPrice * volume;
-                                cumVol += volume;
-                            }
+                for (let i = 0; i < intradayCandles.t.length; i++) {
+                    const candleDate = new Date(intradayCandles.t[i] * 1000).toDateString();
+                    if (candleDate === lastCandleDate) {
+                        const h = intradayCandles.h[i] || 0;
+                        const l = intradayCandles.l[i] || 0;
+                        const c = intradayCandles.c[i] || 0;
+                        const v = intradayCandles.v[i] || 0;
+
+                        if (v > 0) {
+                            const typicalPrice = (h + l + c) / 3;
+                            cumVolPrice += typicalPrice * v;
+                            cumVol += v;
                         }
                     }
                 }
@@ -280,6 +288,8 @@ HTML
                     
                     if (!isAbove) {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse">DAY TRADE BUY Range</span>`;
+                    } else {
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700 tracking-wider">Out of Buy Range</span>`;
                     }
 
                     vwapHTML = `
@@ -336,15 +346,10 @@ HTML
                 histHTML = `<div class="text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">Historical data unavailable</div>`;
             }
 
-            const latestRec = (recs && recs.length > 0) ? recs[0] : { buy: 0, strongBuy: 0, hold: 0, sell: 0, strongSell: 0 };
-            const totalBuy = (latestRec.buy || 0) + (latestRec.strongBuy || 0);
-            const totalHold = latestRec.hold || 0;
-            const totalSell = (latestRec.sell || 0) + (latestRec.strongSell || 0);
-
             const logoSrc = profile?.logo ? profile.logo : `https://ui-avatars.com/api/?name=${symbol}&background=1e293b&color=38bdf8`;
             const compName = profile?.name || 'Unknown Company';
 
-            cardEl.className = `bg-slate-800/80 rounded-2xl p-5 flex flex-col card-transition backdrop-blur-sm border-t border-l border-white/5 relative h-full ${shadowClass}`;
+            cardEl.className = `bg-slate-800/80 rounded-2xl p-5 flex flex-col card-transition backdrop-blur-sm border-t border-l border-white/5 relative h-full justify-start ${shadowClass}`;
             cardEl.innerHTML = `
                 <div class="flex items-center space-x-3 mb-3 w-full">
                     <img src="${logoSrc}" alt="${symbol}" class="w-12 h-12 rounded-full bg-white object-contain p-1 border border-slate-600 flex-shrink-0">
@@ -357,7 +362,10 @@ HTML
                             <span class="text-2xl font-black text-white">$${currentPrice.toFixed(2)}</span>
                             <span class="text-lg ${arrowColor} pb-1">${arrow}</span>
                         </div>
-                        <p class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">Open: <span class="text-white">$${openPrice.toFixed(2)}</span></p>
+                        <p class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                            Open: <span class="text-white">$${openPrice.toFixed(2)}</span> 
+                            <span class="${diffColor} font-bold ml-1">(${diffSign}$${Math.abs(priceDiff).toFixed(2)})</span>
+                        </p>
                     </div>
                 </div>
 
@@ -371,30 +379,11 @@ HTML
 
                 ${preMarketHTML}
 
-                <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full">
+                <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-auto">
                     <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Interday VWAP</span>
                     ${dtSignalHTML}
                     <div class="flex items-center">
                         ${vwapHTML}
-                    </div>
-                </div>
-
-                <!-- Consensus Block - Expanded Horizontally -->
-                <div class="flex flex-col mt-auto h-full justify-end">
-                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-700 pb-1">Analyst Consensus</h4>
-                    <div class="grid grid-cols-3 gap-2 text-[11px] font-bold w-full">
-                        <div class="flex flex-col justify-center items-center bg-green-900/20 border border-green-500/20 text-green-400 p-2 rounded">
-                            <span class="mb-1">BUY</span>
-                            <span class="bg-green-500/20 px-2 py-0.5 rounded text-green-300 text-sm">${totalBuy}</span>
-                        </div>
-                        <div class="flex flex-col justify-center items-center bg-yellow-900/20 border border-yellow-500/20 text-yellow-400 p-2 rounded">
-                            <span class="mb-1">HOLD</span>
-                            <span class="bg-yellow-500/20 px-2 py-0.5 rounded text-yellow-300 text-sm">${totalHold}</span>
-                        </div>
-                        <div class="flex flex-col justify-center items-center bg-red-900/20 border border-red-500/20 text-red-400 p-2 rounded">
-                            <span class="mb-1">SELL</span>
-                            <span class="bg-red-500/20 px-2 py-0.5 rounded text-red-300 text-sm">${totalSell}</span>
-                        </div>
                     </div>
                 </div>
             `;
@@ -404,7 +393,7 @@ HTML
 
         setInterval(() => {
             const autoRefresh = document.getElementById('autoRefresh');
-            if (autoRefresh && autoRefresh.checked && !isProcessingQueue) {
+            if (autoRefresh && autoRefresh.checked && !isProcessingFinnhub) {
                 const progEl = document.getElementById('progressText');
                 if(progEl) {
                     progEl.innerText = 'Auto-refreshing matrix...';
