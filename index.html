@@ -51,17 +51,24 @@ HTML
         
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
+            "Financial Excange Traded Fund": ["SPY", "QQQ"],
             "Computer Hardware & Peripherals": ["NTAP", "DELL", "SIMO", "LNVGY", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
             "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
-            "Semiconductor Equipment & Materials": ["KLAC", "LRCX", "AMAT", "AXTI", "AEHR", "ENTG", "AMKR", "TER", "UCTT", "Q", "ASML", "VECO", "ICHR", "FORM", "ONTO", "KLIC", "ACMR", "PLAB", "TRT", "ATEYY", "COHU", "TOELY"],
+            "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "ENTG", "AMKR", "TER", "AVGO", "ASML", "ONTO", "ATEYY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["MSFT", "AMZN", "ORCL", "IBM", "CRM", "GOOGL"],
             "Data Center Hardware & Infrastructure Suppliers": ["NVDA", "VRT", "AVGO"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN", "VRT"],
             "Elec-Semiconductor Fablss Group": ["AMD", "CRDO", "NVDA", "MRVL", "ARM"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "SMR", "REX", "FCEL"],
-            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"]
+            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
+            "Healthcare - Large Cap": ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
+            "Consumer Cyclical - Large Cap": ["HD", "MCD", "NKE", "SBUX", "LOW"],
+            "Consumer Defensive - Large Cap": ["WMT", "PG", "COST", "KO", "PEP"],
+            "Financials - Large Cap": ["JPM", "V", "MA", "BAC", "WFC"],
+            "Utilities - Large Cap": ["NEE", "SO", "DUK", "SRE", "AEP"],
+            "Energy - Micro Nuclear": ["OKLO", "NNE", "SMR", "BWXT", "LEU"]
         };
 
         let totalSymbols = 0;
@@ -285,8 +292,20 @@ HTML
                     const isAbove = currentPrice >= vwap;
                     const vClass = isAbove ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
                     const vLabel = isAbove ? '▲ ABOVE' : '▼ BELOW';
+
+                    // --- MOMENTUM TREND CHECK ---
+                    let isTrendingUp = false;
+                    if (intradayCandles.c && intradayCandles.c.length >= 2) {
+                        const lastClose = intradayCandles.c[intradayCandles.c.length - 1];
+                        const prevClose = intradayCandles.c[intradayCandles.c.length - 2];
+                        // Positive momentum if current price is higher than the last 15m close, 
+                        // OR the last 15m close pushed higher than the one prior.
+                        isTrendingUp = (currentPrice > lastClose) || (lastClose > prevClose);
+                    } else {
+                        isTrendingUp = currentPrice > openPrice;
+                    }
                     
-                    if (!isAbove) {
+                    if (!isAbove && isTrendingUp) {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse">DAY TRADE BUY Range</span>`;
                     } else {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700 tracking-wider">Out of Buy Range</span>`;
