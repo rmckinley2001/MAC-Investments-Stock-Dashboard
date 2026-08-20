@@ -30,7 +30,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Sparklines & Intraday VWAP</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Metrics & Intraday VWAP</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -122,7 +122,7 @@ HTML
                 const { symbol, isIntraday, resolve } = yahooQueue.shift();
                 try {
                     const interval = isIntraday ? '15m' : '1d';
-                    const range = isIntraday ? '5d' : '3mo'; // 3 months ensures we have exactly 30 trading days for the graphic
+                    const range = isIntraday ? '5d' : '3mo'; // 3 months ensures we have exactly 30 trading days
                     const cb = Date.now(); 
                     
                     const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
@@ -169,7 +169,7 @@ HTML
                 `;
                 for (const symbol of symbols) {
                     htmlContent += `
-                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[260px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[220px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -200,7 +200,6 @@ HTML
                 });
             }
 
-            // Both daily and intraday are queued
             const [profile, quote, dailyCandles, intradayCandles] = await Promise.all([
                 profilePromise,
                 enqueueFinnhub(`/quote?symbol=${symbol}`),
@@ -248,62 +247,33 @@ HTML
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
 
-            // --- 30-DAY SVG SPARKLINE GENERATOR ---
-            let sparklineHTML = '';
+            // --- 30-DAY PAST PRICE EXTRACTION ---
+            let hist30HTML = '';
             if (dailyCandles && dailyCandles.s === 'ok' && dailyCandles.c && dailyCandles.c.length > 0) {
-                // Slice only the last 30 trading days (filter out any nulls)
-                const closes30 = dailyCandles.c.filter(c => c !== null).slice(-30);
+                const closes = dailyCandles.c;
+                // Target exactly 30 trading days ago
+                let index = closes.length - 30;
+                if (index < 0) index = 0; 
+                let price30 = closes[index];
                 
-                if (closes30.length > 1) {
-                    const min = Math.min(...closes30);
-                    const max = Math.max(...closes30);
-                    const range = (max - min) || 1; 
+                if (price30 && price30 > 0) {
+                    let pct = ((currentPrice - price30) / price30) * 100;
+                    let colorClass = pct >= 0 ? 'text-green-400' : 'text-red-400';
+                    let sign = pct > 0 ? '+' : '';
                     
-                    const width = 100;
-                    const height = 40;
-                    const dx = width / (closes30.length - 1);
-                    
-                    let pathD = '';
-                    let areaD = '';
-                    
-                    closes30.forEach((c, index) => {
-                        const x = (index * dx).toFixed(2);
-                        const y = (height - ((c - min) / range) * height).toFixed(2);
-                        if (index === 0) {
-                            pathD += `M ${x} ${y} `;
-                            areaD += `M ${x} ${height} L ${x} ${y} `;
-                        } else {
-                            pathD += `L ${x} ${y} `;
-                            areaD += `L ${x} ${y} `;
-                        }
-                    });
-                    areaD += `L ${width} ${height} Z`; // Close the area box
-
-                    const isUp = closes30[closes30.length - 1] >= closes30[0];
-                    const lineColor = isUp ? '#4ade80' : '#f87171'; // Tailwind green-400 / red-400
-                    const gradId = `grad-${safeGroupId}-${symbol}`;
-
-                    sparklineHTML = `
-                        <div class="mb-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
-                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">30-Day Trend</div>
-                            <div class="h-12 w-full relative">
-                                <svg preserveAspectRatio="none" viewBox="0 -2 100 44" class="w-full h-full">
-                                    <defs>
-                                        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
-                                            <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.0"/>
-                                        </linearGradient>
-                                    </defs>
-                                    <path d="${areaD}" fill="url(#${gradId})" />
-                                    <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-                                </svg>
+                    hist30HTML = `
+                        <div class="mb-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-800 flex justify-between items-center">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">30-Day Past Close</span>
+                            <div class="flex items-center space-x-3">
+                                <span class="text-xs text-white font-medium">$${price30.toFixed(2)}</span>
+                                <span class="text-[11px] font-bold ${colorClass}">${sign}${pct.toFixed(2)}%</span>
                             </div>
                         </div>
                     `;
                 }
             }
-            if (!sparklineHTML) {
-                sparklineHTML = `<div class="mb-4 text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">30-Day data unavailable</div>`;
+            if (!hist30HTML) {
+                hist30HTML = `<div class="mb-4 text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">30-Day data unavailable</div>`;
             }
 
             // --- BULLETPROOF PRE-MARKET EXTRACTION ---
@@ -422,7 +392,7 @@ HTML
                     </div>
                 </div>
 
-                ${sparklineHTML}
+                ${hist30HTML}
                 ${preMarketHTML}
 
                 <div class="flex items-center justify-between text-xs mt-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-auto">
