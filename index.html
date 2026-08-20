@@ -249,37 +249,42 @@ HTML
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
 
+            // --- BULLETPROOF PRE-MARKET HIGH/LOW/CLOSE EXTRACTION ---
             let preMarketHTML = '';
-            if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.meta) {
-                const pre = intradayCandles.meta.currentTradingPeriod?.pre;
-                if (pre && pre.start && pre.end) {
-                    let preHigh = -Infinity;
-                    let preLow = Infinity;
-                    let preClose = null;
-                    
-                    for (let i = 0; i < intradayCandles.t.length; i++) {
-                        const time = intradayCandles.t[i];
-                        if (time >= pre.start && time < pre.end) {
-                            if (intradayCandles.h[i] > preHigh) preHigh = intradayCandles.h[i];
-                            if (intradayCandles.l[i] < preLow) preLow = intradayCandles.l[i];
-                            if (intradayCandles.c[i] !== null && !isNaN(intradayCandles.c[i])) {
-                                preClose = intradayCandles.c[i];
-                            }
+            if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
+                const lastTimestamp = intradayCandles.t[intradayCandles.t.length - 1];
+                const latestDate = new Date(lastTimestamp * 1000);
+                
+                const dateStr = latestDate.toLocaleDateString('en-US', { timeZone: 'America/New_York' });
+                const preMarketStart = new Date(`${dateStr} 04:00:00 GMT-0400`).getTime() / 1000;
+                const preMarketEnd = new Date(`${dateStr} 09:30:00 GMT-0400`).getTime() / 1000;
+
+                let preHigh = -Infinity;
+                let preLow = Infinity;
+                let preClose = null;
+
+                for (let i = 0; i < intradayCandles.t.length; i++) {
+                    const time = intradayCandles.t[i];
+                    if (time >= preMarketStart && time < preMarketEnd) {
+                        if (intradayCandles.h[i] && intradayCandles.h[i] > preHigh) preHigh = intradayCandles.h[i];
+                        if (intradayCandles.l[i] && intradayCandles.l[i] < preLow) preLow = intradayCandles.l[i];
+                        if (intradayCandles.c[i] !== null && !isNaN(intradayCandles.c[i])) {
+                            preClose = intradayCandles.c[i];
                         }
                     }
-                    
-                    if (preClose !== null && preHigh !== -Infinity && preLow !== Infinity) {
-                        preMarketHTML = `
-                            <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full">
-                                <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Pre-Market <span class="text-[9px] text-slate-500 normal-case">(H/L/C)</span></span>
-                                <div class="flex items-center space-x-3 font-medium">
-                                    <span class="text-[10px] text-slate-500">H: <span class="text-slate-300">$${preHigh.toFixed(2)}</span></span>
-                                    <span class="text-[10px] text-slate-500">L: <span class="text-slate-300">$${preLow.toFixed(2)}</span></span>
-                                    <span class="text-[10px] text-slate-500">C: <span class="text-cyan-400 font-bold">$${preClose.toFixed(2)}</span></span>
-                                </div>
+                }
+
+                if (preClose !== null && preHigh !== -Infinity && preLow !== Infinity) {
+                    preMarketHTML = `
+                        <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full">
+                            <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Pre-Market <span class="text-[9px] text-slate-500 normal-case">(H/L/C)</span></span>
+                            <div class="flex items-center space-x-3 font-medium">
+                                <span class="text-[10px] text-slate-500">H: <span class="text-slate-300">$${preHigh.toFixed(2)}</span></span>
+                                <span class="text-[10px] text-slate-500">L: <span class="text-slate-300">$${preLow.toFixed(2)}</span></span>
+                                <span class="text-[10px] text-slate-500">C: <span class="text-cyan-400 font-bold">$${preClose.toFixed(2)}</span></span>
                             </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 }
             }
 
