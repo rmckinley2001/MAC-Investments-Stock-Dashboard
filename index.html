@@ -30,7 +30,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Metrics & Intraday VWAP</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Intraday & VWAP</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -105,13 +105,13 @@ HTML
             isProcessingFinnhub = false;
         }
 
-        // --- OPTIMIZATION 2: YAHOO HIGH-SPEED QUEUE (300ms) ---
+        // --- OPTIMIZATION 2: YAHOO HIGH-SPEED INTRADAY QUEUE (300ms) ---
         const yahooQueue = [];
         let isProcessingYahoo = false;
 
-        function enqueueYahoo(symbol, isIntraday) {
+        function enqueueYahoo(symbol) {
             return new Promise((resolve) => {
-                yahooQueue.push({ symbol, isIntraday, resolve });
+                yahooQueue.push({ symbol, resolve });
                 if (!isProcessingYahoo) processYahooQueue();
             });
         }
@@ -119,10 +119,11 @@ HTML
         async function processYahooQueue() {
             isProcessingYahoo = true;
             while (yahooQueue.length > 0) {
-                const { symbol, isIntraday, resolve } = yahooQueue.shift();
+                const { symbol, resolve } = yahooQueue.shift();
                 try {
-                    const interval = isIntraday ? '15m' : '1d';
-                    const range = isIntraday ? '5d' : '3mo'; // 3 months ensures we have exactly 30 trading days
+                    // Stripped down to only fetch 15m intraday data
+                    const interval = '15m';
+                    const range = '5d'; 
                     const cb = Date.now(); 
                     
                     const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
@@ -169,7 +170,7 @@ HTML
                 `;
                 for (const symbol of symbols) {
                     htmlContent += `
-                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[220px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[180px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -200,14 +201,14 @@ HTML
                 });
             }
 
-            const [profile, quote, dailyCandles, intradayCandles] = await Promise.all([
+            // Stripped out historical API call entirely for maximum speed
+            const [profile, quote, intradayCandles] = await Promise.all([
                 profilePromise,
                 enqueueFinnhub(`/quote?symbol=${symbol}`),
-                enqueueYahoo(symbol, false),
-                enqueueYahoo(symbol, true)
+                enqueueYahoo(symbol)
             ]);
 
-            renderCard(symbol, profile, quote, dailyCandles, intradayCandles, groupName);
+            renderCard(symbol, profile, quote, intradayCandles, groupName);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -221,7 +222,7 @@ HTML
             }
         }
 
-        function renderCard(symbol, profile, quote, dailyCandles, intradayCandles, groupName) {
+        function renderCard(symbol, profile, quote, intradayCandles, groupName) {
             const currentPrice = quote?.c || 0;
             const openPrice = quote?.o || 0;
             const safeGroupId = groupName.replace(/\W/g, '');
@@ -246,35 +247,6 @@ HTML
             const priceDiff = currentPrice - openPrice;
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
-
-            // --- 30-DAY PAST PRICE EXTRACTION ---
-            let hist30HTML = '';
-            if (dailyCandles && dailyCandles.s === 'ok' && dailyCandles.c && dailyCandles.c.length > 0) {
-                const closes = dailyCandles.c;
-                // Target exactly 30 trading days ago
-                let index = closes.length - 30;
-                if (index < 0) index = 0; 
-                let price30 = closes[index];
-                
-                if (price30 && price30 > 0) {
-                    let pct = ((currentPrice - price30) / price30) * 100;
-                    let colorClass = pct >= 0 ? 'text-green-400' : 'text-red-400';
-                    let sign = pct > 0 ? '+' : '';
-                    
-                    hist30HTML = `
-                        <div class="mb-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-800 flex justify-between items-center">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">30-Day Past Close</span>
-                            <div class="flex items-center space-x-3">
-                                <span class="text-xs text-white font-medium">$${price30.toFixed(2)}</span>
-                                <span class="text-[11px] font-bold ${colorClass}">${sign}${pct.toFixed(2)}%</span>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            if (!hist30HTML) {
-                hist30HTML = `<div class="mb-4 text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">30-Day data unavailable</div>`;
-            }
 
             // --- BULLETPROOF PRE-MARKET EXTRACTION ---
             let preMarketHTML = '';
@@ -392,7 +364,6 @@ HTML
                     </div>
                 </div>
 
-                ${hist30HTML}
                 ${preMarketHTML}
 
                 <div class="flex items-center justify-between text-xs mt-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-auto">
