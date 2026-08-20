@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 3.0
+MAC INVESTING LLC STOCK DASHBOARD 4.0
 
 HTML
 <!DOCTYPE html>
@@ -30,7 +30,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: Finnhub (Throttled) + Yahoo Finance (High-Speed Queue)</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Sparklines & Intraday VWAP</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -122,7 +122,7 @@ HTML
                 const { symbol, isIntraday, resolve } = yahooQueue.shift();
                 try {
                     const interval = isIntraday ? '15m' : '1d';
-                    const range = isIntraday ? '5d' : '1y';
+                    const range = isIntraday ? '5d' : '3mo'; // 3 months ensures we have exactly 30 trading days for the graphic
                     const cb = Date.now(); 
                     
                     const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
@@ -150,7 +150,6 @@ HTML
                     console.error("Yahoo API Error:", e);
                     resolve(null);
                 }
-                // Small delay to prevent proxy server dropping requests
                 await new Promise(r => setTimeout(r, 300)); 
             }
             isProcessingYahoo = false;
@@ -161,7 +160,6 @@ HTML
             let htmlContent = '';
 
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
-                // Strip spaces/special chars to create safe ID for categories
                 const safeGroupId = groupName.replace(/\W/g, '');
                 
                 htmlContent += `
@@ -171,7 +169,7 @@ HTML
                 `;
                 for (const symbol of symbols) {
                     htmlContent += `
-                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[320px] skeleton-shadow relative overflow-hidden">
+                        <div id="card-${safeGroupId}-${symbol}" class="bg-slate-900/60 rounded-xl p-5 flex flex-col items-center justify-center min-h-[260px] skeleton-shadow relative overflow-hidden">
                             <div class="animate-pulse flex flex-col items-center space-y-4">
                                 <div class="w-14 h-14 bg-slate-800 rounded-full border border-slate-700"></div>
                                 <div class="text-xl font-bold text-slate-500">Fetching ${symbol}...</div>
@@ -202,6 +200,7 @@ HTML
                 });
             }
 
+            // Both daily and intraday are queued
             const [profile, quote, dailyCandles, intradayCandles] = await Promise.all([
                 profilePromise,
                 enqueueFinnhub(`/quote?symbol=${symbol}`),
@@ -249,7 +248,65 @@ HTML
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
 
-            // --- BULLETPROOF PRE-MARKET HIGH/LOW/CLOSE EXTRACTION ---
+            // --- 30-DAY SVG SPARKLINE GENERATOR ---
+            let sparklineHTML = '';
+            if (dailyCandles && dailyCandles.s === 'ok' && dailyCandles.c && dailyCandles.c.length > 0) {
+                // Slice only the last 30 trading days (filter out any nulls)
+                const closes30 = dailyCandles.c.filter(c => c !== null).slice(-30);
+                
+                if (closes30.length > 1) {
+                    const min = Math.min(...closes30);
+                    const max = Math.max(...closes30);
+                    const range = (max - min) || 1; 
+                    
+                    const width = 100;
+                    const height = 40;
+                    const dx = width / (closes30.length - 1);
+                    
+                    let pathD = '';
+                    let areaD = '';
+                    
+                    closes30.forEach((c, index) => {
+                        const x = (index * dx).toFixed(2);
+                        const y = (height - ((c - min) / range) * height).toFixed(2);
+                        if (index === 0) {
+                            pathD += `M ${x} ${y} `;
+                            areaD += `M ${x} ${height} L ${x} ${y} `;
+                        } else {
+                            pathD += `L ${x} ${y} `;
+                            areaD += `L ${x} ${y} `;
+                        }
+                    });
+                    areaD += `L ${width} ${height} Z`; // Close the area box
+
+                    const isUp = closes30[closes30.length - 1] >= closes30[0];
+                    const lineColor = isUp ? '#4ade80' : '#f87171'; // Tailwind green-400 / red-400
+                    const gradId = `grad-${safeGroupId}-${symbol}`;
+
+                    sparklineHTML = `
+                        <div class="mb-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">30-Day Trend</div>
+                            <div class="h-12 w-full relative">
+                                <svg preserveAspectRatio="none" viewBox="0 -2 100 44" class="w-full h-full">
+                                    <defs>
+                                        <linearGradient id="${gradId}" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+                                            <stop offset="100%" stop-color="${lineColor}" stop-opacity="0.0"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="${areaD}" fill="url(#${gradId})" />
+                                    <path d="${pathD}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            if (!sparklineHTML) {
+                sparklineHTML = `<div class="mb-4 text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">30-Day data unavailable</div>`;
+            }
+
+            // --- BULLETPROOF PRE-MARKET EXTRACTION ---
             let preMarketHTML = '';
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastTimestamp = intradayCandles.t[intradayCandles.t.length - 1];
@@ -276,7 +333,7 @@ HTML
 
                 if (preClose !== null && preHigh !== -Infinity && preLow !== Infinity) {
                     preMarketHTML = `
-                        <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full">
+                        <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-2">
                             <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Pre-Market <span class="text-[9px] text-slate-500 normal-case">(H/L/C)</span></span>
                             <div class="flex items-center space-x-3 font-medium">
                                 <span class="text-[10px] text-slate-500">H: <span class="text-slate-300">$${preHigh.toFixed(2)}</span></span>
@@ -288,6 +345,7 @@ HTML
                 }
             }
 
+            // --- INTERDAY VWAP ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
             let dtSignalHTML = '';
 
@@ -341,59 +399,12 @@ HTML
                 }
             }
 
-            let histHTML = '';
-            if (dailyCandles && dailyCandles.s === 'ok' && dailyCandles.c && dailyCandles.c.length > 0) {
-                const closes = dailyCandles.c;
-                
-                const renderHistBox = (daysBack, label) => {
-                    let price = null;
-                    let pct = null;
-                    let index = closes.length - 1 - daysBack; 
-                    
-                    if (index >= 0 && index < closes.length) {
-                        price = closes[index];
-                        if (price > 0 && openPrice > 0) {
-                            pct = ((openPrice - price) / price) * 100;
-                        }
-                    }
-                    
-                    if (price !== null && pct !== null) {
-                        const colorClass = pct >= 0 ? 'text-green-400' : 'text-red-400';
-                        const sign = pct > 0 ? '+' : '';
-                        return `
-                            <div class="bg-slate-950/80 p-2 rounded border border-slate-800 flex flex-col items-center justify-center text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">${label}</span>
-                                <span class="text-xs text-white font-medium mb-1">$${price.toFixed(2)}</span>
-                                <span class="text-[11px] font-bold ${colorClass}">${sign}${pct.toFixed(2)}%</span>
-                            </div>
-                        `;
-                    } else {
-                        return `
-                            <div class="bg-slate-950/80 p-2 rounded border border-slate-800 flex flex-col items-center justify-center text-center">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">${label}</span>
-                                <span class="text-xs text-slate-600">N/A</span>
-                            </div>
-                        `;
-                    }
-                };
-
-                histHTML = `
-                    <div class="grid grid-cols-3 gap-2 w-full">
-                        ${renderHistBox(5, '5D')}
-                        ${renderHistBox(20, '20D')}
-                        ${renderHistBox(60, '60D')}
-                    </div>
-                `;
-            } else {
-                histHTML = `<div class="text-xs text-slate-500 border border-slate-800 p-2 rounded text-center">Historical data unavailable</div>`;
-            }
-
             const logoSrc = profile?.logo ? profile.logo : `https://ui-avatars.com/api/?name=${symbol}&background=1e293b&color=38bdf8`;
             const compName = profile?.name || 'Unknown Company';
 
             cardEl.className = `bg-slate-800/80 rounded-2xl p-5 flex flex-col card-transition backdrop-blur-sm border-t border-l border-white/5 relative h-full justify-start ${shadowClass}`;
             cardEl.innerHTML = `
-                <div class="flex items-center space-x-3 mb-3 w-full">
+                <div class="flex items-center space-x-3 w-full mb-3">
                     <img src="${logoSrc}" alt="${symbol}" class="w-12 h-12 rounded-full bg-white object-contain p-1 border border-slate-600 flex-shrink-0">
                     <div class="overflow-hidden flex-1">
                         <h3 class="text-xl font-extrabold text-white tracking-tight leading-none">${symbol}</h3>
@@ -411,17 +422,10 @@ HTML
                     </div>
                 </div>
 
-                <div class="mb-4 w-full bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
-                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex justify-between items-center">
-                        <span>Hist. Close vs Open</span>
-                        <span class="text-[9px] text-slate-500 font-normal">(5D, 20D, 60D)</span>
-                    </div>
-                    ${histHTML}
-                </div>
-
+                ${sparklineHTML}
                 ${preMarketHTML}
 
-                <div class="flex items-center justify-between text-xs mb-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-auto">
+                <div class="flex items-center justify-between text-xs mt-4 bg-slate-900/60 p-2.5 rounded-lg border border-slate-700/50 w-full mt-auto">
                     <span class="text-slate-400 uppercase tracking-widest text-[10px] font-bold">Interday VWAP</span>
                     ${dtSignalHTML}
                     <div class="flex items-center">
