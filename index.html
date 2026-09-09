@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 4.0
+MAC INVESTING LLC STOCK DASHBOARD 5.0
 
 HTML
 <!DOCTYPE html>
@@ -13,11 +13,12 @@ HTML
             background-color: #020617; 
             color: #e2e8f0; 
         }
-        .shadow-green { box-shadow: 0 0 25px rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); }
-        .shadow-red { box-shadow: 0 0 25px rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); }
-        .shadow-yellow { box-shadow: 0 0 25px rgba(234, 179, 8, 0.15); border: 1px solid rgba(234, 179, 8, 0.4); }
+        /* Increased borders from 1px to 2px */
+        .shadow-green { box-shadow: 0 0 25px rgba(34, 197, 94, 0.15); border: 2px solid rgba(34, 197, 94, 0.4); }
+        .shadow-red { box-shadow: 0 0 25px rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); }
+        .shadow-yellow { box-shadow: 0 0 25px rgba(234, 179, 8, 0.15); border: 2px solid rgba(234, 179, 8, 0.4); }
         
-        .skeleton-shadow { border: 1px dashed rgba(148, 163, 184, 0.3); }
+        .skeleton-shadow { border: 2px dashed rgba(148, 163, 184, 0.3); }
 
         .card-transition { transition: transform 0.3s ease, box-shadow 0.3s ease; }
         .card-transition:hover { transform: translateY(-4px); }
@@ -49,6 +50,7 @@ HTML
     <script>
         const API_KEY = 'd9pm1shr01qi2fkvbi30d9pm1shr01qi2fkvbi3g';
         
+        // Scrubbed stockGroups: 100% duplicate free
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Financial Exchange Traded Fund": ["SPY", "QQQ"],
@@ -57,18 +59,17 @@ HTML
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
             "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "ENTG", "AMKR", "TER", "AVGO", "ASML", "ONTO", "ATEYY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
-            "Hyperscalers & Cloud Providers": ["MSFT", "AMZN", "ORCL", "IBM", "CRM", "GOOGL"],
-            "Data Center Hardware & Infrastructure Suppliers": ["NVDA", "VRT", "AVGO"],
-            "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN", "VRT"],
-            "Elec-Semiconductor Fablss Group": ["AMD", "CRDO", "NVDA", "MRVL", "ARM"],
-            "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "SMR", "REX", "FCEL"],
+            "Hyperscalers & Cloud Providers": ["ORCL", "IBM", "CRM"],
+            "Data Center Hardware & Infrastructure Suppliers": ["VRT"],
+            "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN"],
+            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM"],
+            "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "REX", "FCEL"],
             "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
             "Healthcare - Large Cap": ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
             "Consumer Cyclical - Large Cap": ["HD", "MCD", "NKE", "SBUX", "LOW"],
             "Consumer Defensive - Large Cap": ["WMT", "PG", "COST", "KO", "PEP"],
             "Financials - Large Cap": ["JPM", "V", "MA", "BAC", "WFC"],
-            "Utilities - Large Cap": ["NEE", "SO", "DUK", "SRE", "AEP"],
-            "Energy - Micro Nuclear": ["OKLO", "NNE", "SMR", "BWXT", "LEU"]
+            "Utilities - Large Cap": ["NEE", "SO", "DUK", "SRE", "AEP"]
         };
 
         let totalSymbols = 0;
