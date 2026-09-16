@@ -31,7 +31,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Intraday, 9EMA & VWAP Convergence</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: 9EMA/VWAP Convergence & Buy Range Signals</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -50,6 +50,7 @@ HTML
     <script>
         const API_KEY = 'd9pm1shr01qi2fkvbi30d9pm1shr01qi2fkvbi3g';
         
+        // Scrubbed stockGroups: 100% duplicate free
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Financial Exchange Traded Fund": ["SPY", "QQQ"],
@@ -89,7 +90,7 @@ HTML
                 return response;
             } catch (error) {
                 clearTimeout(id);
-                throw error; // Will be safely caught by the queue processors
+                throw error; 
             }
         }
 
@@ -163,7 +164,7 @@ HTML
                     }
                 } catch (e) {
                     console.error("Yahoo Proxy Timeout/Error:", e);
-                    resolve(null); // Prevents the queue from freezing
+                    resolve(null);
                 }
                 await new Promise(r => setTimeout(r, 300)); 
             }
@@ -225,13 +226,17 @@ HTML
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
+            
             if (loadedSymbols < totalSymbols) {
                 progEl.innerText = `Updating data... (${loadedSymbols}/${totalSymbols})`;
             } else {
-                progEl.innerText = `Matrix Synchronized`;
-                progEl.classList.remove('animate-pulse');
-                progEl.classList.add('text-green-400');
-                setTimeout(() => { progEl.innerText = 'Live'; }, 5000);
+                const timeString = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+                progEl.innerText = `Updated: ${timeString}`;
+                progEl.className = 'text-sm font-semibold text-green-400 transition-colors duration-500';
+                
+                setTimeout(() => { 
+                    progEl.className = 'text-sm font-semibold text-slate-400 transition-colors duration-500';
+                }, 5000);
             }
         }
 
@@ -302,7 +307,7 @@ HTML
 
             // --- INTERDAY VWAP, 9-EMA & VOLUME CONVERGENCE ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
-            let dtSignalHTML = '';
+            let dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50 tracking-wider border-dashed" title="Waiting for data stream">Awaiting Stream</span>`;
 
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
@@ -332,11 +337,13 @@ HTML
                     const vClass = isAbove ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
                     const vLabel = isAbove ? '▲ ABOVE' : '▼ BELOW';
 
-                    // --- CALC 9 EMA ---
+                    // --- CALC 9 EMA WITH TRAJECTORY TRACKING ---
                     let ema9 = intradayCandles.c[0] || currentPrice;
+                    let prevEma9 = ema9; 
                     const k = 2 / (9 + 1);
                     for (let i = 1; i < intradayCandles.c.length; i++) {
                         if (intradayCandles.c[i] !== null && !isNaN(intradayCandles.c[i])) {
+                            prevEma9 = ema9; // Capture trajectory before updating
                             ema9 = (intradayCandles.c[i] * k) + (ema9 * (1 - k));
                         }
                     }
@@ -351,20 +358,27 @@ HTML
                         const lastVol = intradayCandles.v[intradayCandles.v.length - 1] || 0;
                         const prevVol = intradayCandles.v[intradayCandles.v.length - 2] || 0;
                         
-                        // Momentum pushing upward toward VWAP
                         isTrendingUp = (currentPrice > lastClose) || (lastClose > prevClose);
-                        // Volume increasing on the move
                         hasIncreasedVolume = lastVol > prevVol;
                     } else {
                         isTrendingUp = currentPrice > openPrice;
                         hasIncreasedVolume = true;
                     }
                     
-                    // NEW ALERT LOGIC: Price < VWAP, 9EMA < VWAP, Momentum Up, Volume Up
-                    if (!isAbove && (ema9 < vwap) && isTrendingUp && hasIncreasedVolume) {
+                    // --- PINCH / CROSS CONVERGENCE LOGIC ---
+                    const diffPct = Math.abs(ema9 - vwap) / vwap;
+                    // Check if 9EMA is angling actively towards the VWAP
+                    const isEmaApproachingVwap = (ema9 < vwap && ema9 > prevEma9) || (ema9 > vwap && ema9 < prevEma9);
+                    // Considered "Converging" if it's within 0.25% distance AND moving towards it
+                    const isConverging = (diffPct <= 0.0025) && isEmaApproachingVwap;
+                    
+                    // --- 3-TIER ALERT HIERARCHY ---
+                    if (isConverging) {
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-fuchsia-400 bg-fuchsia-400/10 px-2 py-0.5 rounded border border-fuchsia-400/30 tracking-wider animate-pulse" title="9EMA & VWAP are within 0.25% and pinching">9EMA-VWAP CONVERGING</span>`;
+                    } else if (!isAbove && (ema9 < vwap) && isTrendingUp && hasIncreasedVolume) {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse" title="9EMA < VWAP & High Vol Convergence">DAY TRADE BUY Range</span>`;
                     } else {
-                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700 tracking-wider">Out of Buy Range</span>`;
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700 tracking-wider">Out of Buy Range</span>`;
                     }
 
                     vwapHTML = `
