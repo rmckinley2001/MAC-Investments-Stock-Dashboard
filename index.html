@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 5.0
+MAC INVESTING LLC STOCK DASHBOARD 6.0
 
 HTML
 <!DOCTYPE html>
@@ -31,7 +31,7 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Intraday & VWAP</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: High-Speed Intraday, 9EMA & VWAP Convergence</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
                 <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
@@ -54,21 +54,22 @@ HTML
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Financial Exchange Traded Fund": ["SPY", "QQQ"],
-            "Computer Hardware & Peripherals": ["NTAP", "DELL", "SIMO", "LNVGY", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
-            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
+            "Computer Hardware & Memory Chips": ["NTAP", "DELL", "RMBS", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
+            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
             "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "ENTG", "AMKR", "TER", "AVGO", "ASML", "ONTO", "ATEYY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["ORCL", "IBM", "CRM"],
             "Data Center Hardware & Infrastructure Suppliers": ["VRT"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN"],
-            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM"],
+            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC". "QRVO"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "REX", "FCEL"],
             "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
             "Healthcare - Large Cap": ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
             "Consumer Cyclical - Large Cap": ["HD", "MCD", "NKE", "SBUX", "LOW"],
             "Consumer Defensive - Large Cap": ["WMT", "PG", "COST", "KO", "PEP"],
             "Financials - Large Cap": ["JPM", "V", "MA", "BAC", "WFC"],
+            "Internet - Network": ["NBIS", "FFIV"],
             "Utilities - Large Cap": ["NEE", "SO", "DUK", "SRE", "AEP"]
         };
 
@@ -202,7 +203,6 @@ HTML
                 });
             }
 
-            // Stripped out historical API call entirely for maximum speed
             const [profile, quote, intradayCandles] = await Promise.all([
                 profilePromise,
                 enqueueFinnhub(`/quote?symbol=${symbol}`),
@@ -288,7 +288,7 @@ HTML
                 }
             }
 
-            // --- INTERDAY VWAP ---
+            // --- INTERDAY VWAP, 9-EMA & VOLUME CONVERGENCE ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
             let dtSignalHTML = '';
 
@@ -320,17 +320,37 @@ HTML
                     const vClass = isAbove ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
                     const vLabel = isAbove ? '▲ ABOVE' : '▼ BELOW';
 
+                    // --- CALC 9 EMA ---
+                    let ema9 = intradayCandles.c[0] || currentPrice;
+                    const k = 2 / (9 + 1);
+                    for (let i = 1; i < intradayCandles.c.length; i++) {
+                        if (intradayCandles.c[i] !== null && !isNaN(intradayCandles.c[i])) {
+                            ema9 = (intradayCandles.c[i] * k) + (ema9 * (1 - k));
+                        }
+                    }
+
+                    // --- MOMENTUM & VOLUME CONVERGENCE ---
                     let isTrendingUp = false;
+                    let hasIncreasedVolume = false;
+
                     if (intradayCandles.c && intradayCandles.c.length >= 2) {
                         const lastClose = intradayCandles.c[intradayCandles.c.length - 1];
                         const prevClose = intradayCandles.c[intradayCandles.c.length - 2];
+                        const lastVol = intradayCandles.v[intradayCandles.v.length - 1] || 0;
+                        const prevVol = intradayCandles.v[intradayCandles.v.length - 2] || 0;
+                        
+                        // Momentum pushing upward toward VWAP
                         isTrendingUp = (currentPrice > lastClose) || (lastClose > prevClose);
+                        // Volume increasing on the move
+                        hasIncreasedVolume = lastVol > prevVol;
                     } else {
                         isTrendingUp = currentPrice > openPrice;
+                        hasIncreasedVolume = true;
                     }
                     
-                    if (!isAbove && isTrendingUp) {
-                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse">DAY TRADE BUY Range</span>`;
+                    // NEW ALERT LOGIC: Price < VWAP, 9EMA < VWAP, Momentum Up, Volume Up
+                    if (!isAbove && (ema9 < vwap) && isTrendingUp && hasIncreasedVolume) {
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse" title="9EMA < VWAP & High Vol Convergence">DAY TRADE BUY Range</span>`;
                     } else {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700 tracking-wider">Out of Buy Range</span>`;
                     }
