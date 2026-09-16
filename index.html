@@ -50,19 +50,18 @@ HTML
     <script>
         const API_KEY = 'd9pm1shr01qi2fkvbi30d9pm1shr01qi2fkvbi3g';
         
-        // Scrubbed stockGroups: 100% duplicate free
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Financial Exchange Traded Fund": ["SPY", "QQQ"],
             "Computer Hardware & Memory Chips": ["NTAP", "DELL", "RMBS", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
-            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "RKLB"],
+            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
             "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "ENTG", "AMKR", "TER", "AVGO", "ASML", "ONTO", "ATEYY"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["ORCL", "IBM", "CRM"],
             "Data Center Hardware & Infrastructure Suppliers": ["VRT"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN"],
-            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC". "QRVO"],
+            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC", "QRVO"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "REX", "FCEL"],
             "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
             "Healthcare - Large Cap": ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
@@ -80,6 +79,20 @@ HTML
         // --- CACHE LAYER ---
         const profileCache = {};
 
+        // --- FAULT-TOLERANT FETCH (Prevents infinite queue freezing) ---
+        async function fetchWithTimeout(url, timeoutMs = 8000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (error) {
+                clearTimeout(id);
+                throw error; // Will be safely caught by the queue processors
+            }
+        }
+
         // --- OPTIMIZATION 1: FINNHUB STRICT QUEUE (1050ms) ---
         const finnhubQueue = [];
         let isProcessingFinnhub = false;
@@ -96,10 +109,10 @@ HTML
             while (finnhubQueue.length > 0) {
                 const { endpoint, resolve } = finnhubQueue.shift();
                 try {
-                    const response = await fetch(`https://finnhub.io/api/v1${endpoint}&token=${API_KEY}`);
+                    const response = await fetchWithTimeout(`https://finnhub.io/api/v1${endpoint}&token=${API_KEY}`, 8000);
                     resolve(response.ok ? await response.json() : null);
                 } catch (e) {
-                    console.error("Finnhub API Error:", e);
+                    console.error("Finnhub Timeout/Error:", e);
                     resolve(null);
                 }
                 await new Promise(r => setTimeout(r, 1050)); 
@@ -123,7 +136,6 @@ HTML
             while (yahooQueue.length > 0) {
                 const { symbol, resolve } = yahooQueue.shift();
                 try {
-                    // Stripped down to only fetch 15m intraday data
                     const interval = '15m';
                     const range = '5d'; 
                     const cb = Date.now(); 
@@ -131,7 +143,7 @@ HTML
                     const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
                     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
                     
-                    const response = await fetch(proxyUrl);
+                    const response = await fetchWithTimeout(proxyUrl, 8000);
                     const data = response.ok ? await response.json() : null;
                     
                     if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
@@ -150,8 +162,8 @@ HTML
                         resolve(null);
                     }
                 } catch (e) {
-                    console.error("Yahoo API Error:", e);
-                    resolve(null);
+                    console.error("Yahoo Proxy Timeout/Error:", e);
+                    resolve(null); // Prevents the queue from freezing
                 }
                 await new Promise(r => setTimeout(r, 300)); 
             }
