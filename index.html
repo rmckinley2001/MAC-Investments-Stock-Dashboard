@@ -53,25 +53,24 @@ HTML
         // Scrubbed stockGroups: 100% duplicate free
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
-            "Financial Exchange Traded Fund": ["SPY", "QQQ"],
-            "Computer Hardware & Memory Chips": ["NTAP", "DELL", "RMBS", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "TACT", "CRCT", "HPQ"],
-            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "HWM", "HEI", "RKLB"],
-            "Nuclear & SMR": ["SMR", "CEG", "OKLO", "NNE", "LEU", "BWXT", "TLN"],
-            "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "ENTG", "AMKR", "TER", "AVGO", "ASML", "ONTO", "ATEYY"],
+            "Financial Exchange Traded Fund": ["SPY", "DJI", "NDX" "QQQ"],
+            "Computer Hardware & Memory Chips": ["NTAP", "DELL", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "HPQ"],
+            "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "RKLB"],
+            "Nuclear & SMR": ["SMR", "CEG", "OKLO", "LEU", "TLN"],
+            "Semiconductor Equipment, Materials & MFG": ["KLAC", "TSM", "LRCX", "AMAT", "AEHR", "TER", "AVGO", "ASML", "ONTO"],
             "Data Center & Infrastructure": ["EQIX", "DLR", "IRM", "AMT"],
             "Hyperscalers & Cloud Providers": ["ORCL", "IBM", "CRM"],
             "Data Center Hardware & Infrastructure Suppliers": ["VRT"],
-            "Electrical-Power/Equipment Group": ["AME", "NVT", "SBGSY", "ETN"],
-            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC", "QRVO"],
+            "Electrical-Power/Equipment Group": ["AME", "NVT", "ETN"],
+            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "REX", "FCEL"],
-            "Computer Software - Enterprise Group:": ["DDOG", "NET", "KARO", "SNOW", "PLTR"],
-            "Healthcare - Large Cap": ["LLY", "UNH", "JNJ", "ABBV", "MRK"],
+            "Computer Software - Enterprise Group:": ["DDOG", "NET", "SNOW", "PLTR"],
+            "Healthcare - Large Cap": ["LLY", "UNH", "JNJ"],
             "Consumer Cyclical - Large Cap": ["HD", "MCD", "NKE", "SBUX", "LOW"],
             "Consumer Defensive - Large Cap": ["WMT", "PG", "COST", "KO", "PEP"],
             "Financials - Large Cap": ["JPM", "V", "MA", "BAC", "WFC"],
             "Internet - Network": ["NBIS", "FFIV"],
-            "Utilities - Large Cap": ["NEE", "SO", "DUK", "SRE", "AEP"]
-        };
+            "Utilities - Large Cap": []        };
 
         let totalSymbols = 0;
         let loadedSymbols = 0;
