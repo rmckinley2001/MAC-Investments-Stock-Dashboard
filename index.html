@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 6.1
+MAC INVESTING LLC STOCK DASHBOARD 6.2
 
 HTML
 <!DOCTYPE html>
@@ -13,7 +13,6 @@ HTML
             background-color: #020617; 
             color: #e2e8f0; 
         }
-        /* Increased borders from 1px to 2px */
         .shadow-green { box-shadow: 0 0 25px rgba(34, 197, 94, 0.15); border: 2px solid rgba(34, 197, 94, 0.4); }
         .shadow-red { box-shadow: 0 0 25px rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); }
         .shadow-yellow { box-shadow: 0 0 25px rgba(234, 179, 8, 0.15); border: 2px solid rgba(234, 179, 8, 0.4); }
@@ -31,10 +30,10 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: 9EMA/VWAP Convergence & Buy Range Signals</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: Ultra-Speed Intraday, 9EMA & VWAP Convergence</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
-                <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
+                <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Speed Queue...</span>
                 <label class="flex items-center space-x-2 cursor-pointer group">
                     <input type="checkbox" id="autoRefresh" class="form-checkbox rounded bg-slate-800 border-slate-600 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900 transition duration-150 ease-in-out">
                     <span class="text-sm text-slate-300 group-hover:text-white transition-colors">Auto-Refresh (5m)</span>
@@ -48,12 +47,10 @@ HTML
     </div>
 
     <script>
-        const API_KEY = 'd9pm1shr01qi2fkvbi30d9pm1shr01qi2fkvbi3g';
-        
-        // Scrubbed stockGroups: 100% duplicate free
+        // Scrubbed stockGroups: 100% duplicate free and syntax corrected
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
-            "Financial Exchange Traded Fund": ["SPY", "DJI", "NDX" "QQQ"],
+            "Financial Exchange Traded Fund": ["SPY", "DJI", "NYA", "NDX", "QQQ"],
             "Computer Hardware & Memory Chips": ["NTAP", "DELL", "SNDK", "SMCI", "P", "MU", "WDC", "STX", "BLZE", "HPQ"],
             "Aerospace & Defense": ["LMT", "RTX", "SPCX", "GE", "RKLB"],
             "Nuclear & SMR": ["SMR", "CEG", "OKLO", "LEU", "TLN"],
@@ -62,112 +59,123 @@ HTML
             "Hyperscalers & Cloud Providers": ["ORCL", "IBM", "CRM"],
             "Data Center Hardware & Infrastructure Suppliers": ["VRT"],
             "Electrical-Power/Equipment Group": ["AME", "NVT", "ETN"],
-            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC"],
+            "Elec-Semiconductor Mfg Group": ["AMD", "CRDO", "MRVL", "ARM", "INTC", "QRVO"],
             "Energy-Alternative/Other Group": ["BE", "GEV", "ENTL", "REX", "FCEL"],
             "Computer Software - Enterprise Group:": ["DDOG", "NET", "SNOW", "PLTR"],
             "Healthcare - Large Cap": ["LLY", "UNH", "JNJ"],
             "Consumer Cyclical - Large Cap": ["HD", "MCD", "NKE", "SBUX", "LOW"],
             "Consumer Defensive - Large Cap": ["WMT", "PG", "COST", "KO", "PEP"],
             "Financials - Large Cap": ["JPM", "V", "MA", "BAC", "WFC"],
-            "Internet - Network": ["NBIS", "FFIV"],
-            "Utilities - Large Cap": []        };
+            "Internet - Network": ["NBIS", "FFIV"]
+        };
+
+        // Built-in Company Dictionary to bypass slow API lookups
+        const companyNames = {
+            "AAPL": "Apple Inc.", "MSFT": "Microsoft", "GOOGL": "Alphabet", "AMZN": "Amazon", "META": "Meta Platforms", "TSLA": "Tesla", "NVDA": "NVIDIA",
+            "SPY": "SPDR S&P 500 ETF", "QQQ": "Invesco QQQ Trust", "DJI": "Dow Jones Industrial Average", "NYA": "NYSE Composite", "NDX": "Nasdaq 100",
+            "NTAP": "NetApp", "DELL": "Dell Technologies", "RMBS": "Rambus", "SNDK": "SanDisk", "SMCI": "Super Micro Computer", "P": "Pandora", "MU": "Micron Technology", "WDC": "Western Digital", "STX": "Seagate Technology", "BLZE": "Backblaze", "TACT": "TransAct Tech", "CRCT": "Cricut", "HPQ": "HP Inc.",
+            "LMT": "Lockheed Martin", "RTX": "RTX Corp", "SPCX": "SpaceX ETF", "GE": "General Electric", "HWM": "Howmet Aerospace", "HEI": "Heico", "RKLB": "Rocket Lab",
+            "SMR": "NuScale Power", "CEG": "Constellation Energy", "OKLO": "Oklo Inc", "NNE": "Nano Nuclear Energy", "LEU": "Centrus Energy", "BWXT": "BWX Technologies", "TLN": "Talen Energy",
+            "KLAC": "KLA Corp", "TSM": "Taiwan Semiconductor", "LRCX": "Lam Research", "AMAT": "Applied Materials", "AEHR": "Aehr Test Systems", "ENTG": "Entegris", "AMKR": "Amkor Technology", "TER": "Teradyne", "AVGO": "Broadcom", "ASML": "ASML Holding", "ONTO": "Onto Innovation", "ATEYY": "Advantest",
+            "EQIX": "Equinix", "DLR": "Digital Realty", "IRM": "Iron Mountain", "AMT": "American Tower",
+            "ORCL": "Oracle", "IBM": "IBM", "CRM": "Salesforce", "VRT": "Vertiv Holdings",
+            "AME": "AMETEK", "NVT": "nVent Electric", "SBGSY": "Schneider Electric", "ETN": "Eaton",
+            "AMD": "Advanced Micro Devices", "CRDO": "Credo Technology", "MRVL": "Marvell Technology", "ARM": "Arm Holdings", "INTC": "Intel", "QRVO": "Qorvo",
+            "BE": "Bloom Energy", "GEV": "GE Vernova", "ENTL": "Entel", "REX": "REX American Resources", "FCEL": "FuelCell Energy",
+            "DDOG": "Datadog", "NET": "Cloudflare", "KARO": "Karooooo", "SNOW": "Snowflake", "PLTR": "Palantir",
+            "LLY": "Eli Lilly", "UNH": "UnitedHealth", "JNJ": "Johnson & Johnson", "ABBV": "AbbVie", "MRK": "Merck",
+            "HD": "Home Depot", "MCD": "McDonald's", "NKE": "Nike", "SBUX": "Starbucks", "LOW": "Lowe's",
+            "WMT": "Walmart", "PG": "Procter & Gamble", "COST": "Costco", "KO": "Coca-Cola", "PEP": "PepsiCo",
+            "JPM": "JPMorgan Chase", "V": "Visa", "MA": "Mastercard", "BAC": "Bank of America", "WFC": "Wells Fargo",
+            "NBIS": "NetBistro", "FFIV": "F5 Networks"
+        };
 
         let totalSymbols = 0;
         let loadedSymbols = 0;
         for (const syms of Object.values(stockGroups)) totalSymbols += syms.length;
 
-        // --- CACHE LAYER ---
-        const profileCache = {};
-
-        // --- FAULT-TOLERANT FETCH (Prevents infinite queue freezing) ---
-        async function fetchWithTimeout(url, timeoutMs = 8000) {
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeoutMs);
-            try {
-                const response = await fetch(url, { signal: controller.signal });
-                clearTimeout(id);
-                return response;
-            } catch (error) {
-                clearTimeout(id);
-                throw error; 
-            }
-        }
-
-        // --- OPTIMIZATION 1: FINNHUB STRICT QUEUE (1050ms) ---
-        const finnhubQueue = [];
-        let isProcessingFinnhub = false;
-
-        function enqueueFinnhub(endpoint) {
-            return new Promise((resolve) => {
-                finnhubQueue.push({ endpoint, resolve });
-                if (!isProcessingFinnhub) processFinnhubQueue();
-            });
-        }
-
-        async function processFinnhubQueue() {
-            isProcessingFinnhub = true;
-            while (finnhubQueue.length > 0) {
-                const { endpoint, resolve } = finnhubQueue.shift();
-                try {
-                    const response = await fetchWithTimeout(`https://finnhub.io/api/v1${endpoint}&token=${API_KEY}`, 8000);
-                    resolve(response.ok ? await response.json() : null);
-                } catch (e) {
-                    console.error("Finnhub Timeout/Error:", e);
-                    resolve(null);
-                }
-                await new Promise(r => setTimeout(r, 1050)); 
-            }
-            isProcessingFinnhub = false;
-        }
-
-        // --- OPTIMIZATION 2: YAHOO HIGH-SPEED INTRADAY QUEUE (300ms) ---
+        // --- CONCURRENT YAHOO FETCH ENGINE (Massive Speed Increase) ---
         const yahooQueue = [];
         let isProcessingYahoo = false;
+        const CONCURRENCY_LIMIT = 10; // Load 10 symbols simultaneously
+        let activeRequests = 0;
 
         function enqueueYahoo(symbol) {
             return new Promise((resolve) => {
-                yahooQueue.push({ symbol, resolve });
+                yahooQueue.push(async () => {
+                    const data = await fetchYahooWithRetry(symbol);
+                    resolve(data);
+                });
                 if (!isProcessingYahoo) processYahooQueue();
             });
         }
 
         async function processYahooQueue() {
             isProcessingYahoo = true;
-            while (yahooQueue.length > 0) {
-                const { symbol, resolve } = yahooQueue.shift();
+            while (yahooQueue.length > 0 || activeRequests > 0) {
+                while (activeRequests < CONCURRENCY_LIMIT && yahooQueue.length > 0) {
+                    const task = yahooQueue.shift();
+                    activeRequests++;
+                    task().finally(() => {
+                        activeRequests--;
+                    });
+                }
+                await new Promise(r => setTimeout(r, 50)); // Tiny loop buffer
+            }
+            isProcessingYahoo = false;
+        }
+
+        // --- FAULT-TOLERANT MULTI-PROXY ROTATOR ---
+        async function fetchYahooWithRetry(symbol, retries = 3) {
+            let actualSymbol = symbol;
+            // Map common indices to Yahoo's required syntax
+            if (symbol === 'DJI') actualSymbol = '^DJI';
+            if (symbol === 'NYA') actualSymbol = '^NYA';
+            if (symbol === 'NDX') actualSymbol = '^NDX';
+
+            const interval = '15m';
+            const range = '5d'; 
+            const cb = Date.now(); 
+            const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${actualSymbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
+            
+            // Proxy Rotator: If one server jams, switch to the next instantly
+            const proxies = [
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
+                `https://corsproxy.io/?${encodeURIComponent(yfUrl)}`
+            ];
+
+            for (let i = 0; i < retries; i++) {
                 try {
-                    const interval = '15m';
-                    const range = '5d'; 
-                    const cb = Date.now(); 
+                    const proxyUrl = proxies[i % proxies.length];
+                    const controller = new AbortController();
+                    const id = setTimeout(() => controller.abort(), 6000); // Strict 6 second timeout
                     
-                    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
-                    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`;
+                    const response = await fetch(proxyUrl, { signal: controller.signal });
+                    clearTimeout(id);
                     
-                    const response = await fetchWithTimeout(proxyUrl, 8000);
-                    const data = response.ok ? await response.json() : null;
+                    if (!response.ok) throw new Error("Proxy Error");
+                    const data = await response.json();
                     
                     if (data && data.chart && data.chart.result && data.chart.result.length > 0) {
                         const result = data.chart.result[0];
                         const indicators = result.indicators.quote[0];
-                        resolve({
+                        return {
                             s: 'ok',
                             t: result.timestamp,
+                            o: indicators.open,
                             c: indicators.close,
                             h: indicators.high,
                             l: indicators.low,
                             v: indicators.volume,
                             meta: result.meta 
-                        });
-                    } else {
-                        resolve(null);
+                        };
                     }
                 } catch (e) {
-                    console.error("Yahoo Proxy Timeout/Error:", e);
-                    resolve(null);
+                    // Retry silently
                 }
-                await new Promise(r => setTimeout(r, 300)); 
+                await new Promise(r => setTimeout(r, 400)); // Small backoff before retry
             }
-            isProcessingYahoo = false;
+            return null; // Return null if all retries fail so the UI doesn't freeze
         }
 
         function initializeUI() {
@@ -175,6 +183,8 @@ HTML
             let htmlContent = '';
 
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
+                if (symbols.length === 0) continue; 
+                
                 const safeGroupId = groupName.replace(/\W/g, '');
                 
                 htmlContent += `
@@ -197,6 +207,7 @@ HTML
             }
             dashboardEl.innerHTML = htmlContent;
 
+            // Trigger data load simultaneously
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
                 for (const symbol of symbols) {
                     loadStockData(symbol, groupName);
@@ -205,23 +216,8 @@ HTML
         }
 
         async function loadStockData(symbol, groupName) {
-            let profilePromise;
-            if (profileCache[symbol]) {
-                profilePromise = Promise.resolve(profileCache[symbol]);
-            } else {
-                profilePromise = enqueueFinnhub(`/stock/profile2?symbol=${symbol}`).then(data => {
-                    if (data) profileCache[symbol] = data;
-                    return data;
-                });
-            }
-
-            const [profile, quote, intradayCandles] = await Promise.all([
-                profilePromise,
-                enqueueFinnhub(`/quote?symbol=${symbol}`),
-                enqueueYahoo(symbol)
-            ]);
-
-            renderCard(symbol, profile, quote, intradayCandles, groupName);
+            const intradayCandles = await enqueueYahoo(symbol);
+            renderCard(symbol, intradayCandles, groupName);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -239,13 +235,31 @@ HTML
             }
         }
 
-        function renderCard(symbol, profile, quote, intradayCandles, groupName) {
-            const currentPrice = quote?.c || 0;
-            const openPrice = quote?.o || 0;
+        function renderCard(symbol, intradayCandles, groupName) {
             const safeGroupId = groupName.replace(/\W/g, '');
             const cardEl = document.getElementById(`card-${safeGroupId}-${symbol}`);
-            
             if (!cardEl) return;
+
+            // --- DATA PARSING FROM YAHOO ---
+            let currentPrice = 0;
+            let openPrice = 0;
+
+            if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
+                currentPrice = intradayCandles.meta.regularMarketPrice || intradayCandles.c[intradayCandles.c.length - 1];
+                openPrice = intradayCandles.meta.chartPreviousClose || currentPrice;
+                
+                // Find true Open from today's first regular candle
+                const lastT = intradayCandles.t[intradayCandles.t.length - 1];
+                const latestDayStr = new Date(lastT * 1000).toDateString();
+                for (let i = 0; i < intradayCandles.t.length; i++) {
+                    if (new Date(intradayCandles.t[i] * 1000).toDateString() === latestDayStr) {
+                        if (intradayCandles.o && intradayCandles.o[i] != null) {
+                            openPrice = intradayCandles.o[i];
+                            break;
+                        }
+                    }
+                }
+            }
 
             let shadowClass = 'shadow-yellow';
             let arrow = '⬌';
@@ -265,7 +279,7 @@ HTML
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
 
-            // --- BULLETPROOF PRE-MARKET EXTRACTION ---
+            // --- PRE-MARKET EXTRACTION ---
             let preMarketHTML = '';
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastTimestamp = intradayCandles.t[intradayCandles.t.length - 1];
@@ -304,13 +318,12 @@ HTML
                 }
             }
 
-            // --- INTERDAY VWAP, 9-EMA & VOLUME CONVERGENCE ---
+            // --- INTERDAY VWAP & 9-EMA CONVERGENCE ---
             let vwapHTML = `<span class="text-slate-500 font-normal ml-1">N/A</span>`;
             let dtSignalHTML = `<span class="text-[10px] font-extrabold text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded border border-slate-700/50 tracking-wider border-dashed" title="Waiting for data stream">Awaiting Stream</span>`;
 
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
-                
                 let cumVolPrice = 0;
                 let cumVol = 0;
 
@@ -336,18 +349,16 @@ HTML
                     const vClass = isAbove ? 'text-green-400 bg-green-900/30' : 'text-red-400 bg-red-900/30';
                     const vLabel = isAbove ? '▲ ABOVE' : '▼ BELOW';
 
-                    // --- CALC 9 EMA WITH TRAJECTORY TRACKING ---
                     let ema9 = intradayCandles.c[0] || currentPrice;
                     let prevEma9 = ema9; 
                     const k = 2 / (9 + 1);
                     for (let i = 1; i < intradayCandles.c.length; i++) {
                         if (intradayCandles.c[i] !== null && !isNaN(intradayCandles.c[i])) {
-                            prevEma9 = ema9; // Capture trajectory before updating
+                            prevEma9 = ema9; 
                             ema9 = (intradayCandles.c[i] * k) + (ema9 * (1 - k));
                         }
                     }
 
-                    // --- MOMENTUM & VOLUME CONVERGENCE ---
                     let isTrendingUp = false;
                     let hasIncreasedVolume = false;
 
@@ -364,14 +375,10 @@ HTML
                         hasIncreasedVolume = true;
                     }
                     
-                    // --- PINCH / CROSS CONVERGENCE LOGIC ---
                     const diffPct = Math.abs(ema9 - vwap) / vwap;
-                    // Check if 9EMA is angling actively towards the VWAP
                     const isEmaApproachingVwap = (ema9 < vwap && ema9 > prevEma9) || (ema9 > vwap && ema9 < prevEma9);
-                    // Considered "Converging" if it's within 0.25% distance AND moving towards it
                     const isConverging = (diffPct <= 0.0025) && isEmaApproachingVwap;
                     
-                    // --- 3-TIER ALERT HIERARCHY ---
                     if (isConverging) {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-fuchsia-400 bg-fuchsia-400/10 px-2 py-0.5 rounded border border-fuchsia-400/30 tracking-wider animate-pulse" title="9EMA & VWAP are within 0.25% and pinching">9EMA-VWAP CONVERGING</span>`;
                     } else if (!isAbove && (ema9 < vwap) && isTrendingUp && hasIncreasedVolume) {
@@ -387,13 +394,13 @@ HTML
                 }
             }
 
-            const logoSrc = profile?.logo ? profile.logo : `https://ui-avatars.com/api/?name=${symbol}&background=1e293b&color=38bdf8`;
-            const compName = profile?.name || 'Unknown Company';
+            const compName = companyNames[symbol] || 'Market Asset';
+            const logoSrc = `https://ui-avatars.com/api/?name=${symbol}&background=1e293b&color=38bdf8&bold=true&font-size=0.33`;
 
             cardEl.className = `bg-slate-800/80 rounded-2xl p-5 flex flex-col card-transition backdrop-blur-sm border-t border-l border-white/5 relative h-full justify-start ${shadowClass}`;
             cardEl.innerHTML = `
                 <div class="flex items-center space-x-3 w-full mb-3">
-                    <img src="${logoSrc}" alt="${symbol}" class="w-12 h-12 rounded-full bg-white object-contain p-1 border border-slate-600 flex-shrink-0">
+                    <img src="${logoSrc}" alt="${symbol}" class="w-12 h-12 rounded-full bg-slate-900 object-contain p-1 border border-slate-600 flex-shrink-0">
                     <div class="overflow-hidden flex-1">
                         <h3 class="text-xl font-extrabold text-white tracking-tight leading-none">${symbol}</h3>
                         <p class="text-[11px] text-slate-400 truncate w-full mt-1" title="${compName}">${compName}</p>
@@ -426,7 +433,7 @@ HTML
 
         setInterval(() => {
             const autoRefresh = document.getElementById('autoRefresh');
-            if (autoRefresh && autoRefresh.checked && !isProcessingFinnhub && !isProcessingYahoo) {
+            if (autoRefresh && autoRefresh.checked && !isProcessingYahoo) {
                 const progEl = document.getElementById('progressText');
                 if(progEl) {
                     progEl.innerText = 'Auto-refreshing matrix...';
