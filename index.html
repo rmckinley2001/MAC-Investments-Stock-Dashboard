@@ -1,4 +1,4 @@
-MAC INVESTING LLC STOCK DASHBOARD 6.2
+MAC INVESTING LLC STOCK DASHBOARD 6.3
 
 HTML
 <!DOCTYPE html>
@@ -13,6 +13,7 @@ HTML
             background-color: #020617; 
             color: #e2e8f0; 
         }
+        /* Increased borders from 1px to 2px */
         .shadow-green { box-shadow: 0 0 25px rgba(34, 197, 94, 0.15); border: 2px solid rgba(34, 197, 94, 0.4); }
         .shadow-red { box-shadow: 0 0 25px rgba(239, 68, 68, 0.15); border: 2px solid rgba(239, 68, 68, 0.4); }
         .shadow-yellow { box-shadow: 0 0 25px rgba(234, 179, 8, 0.15); border: 2px solid rgba(234, 179, 8, 0.4); }
@@ -30,10 +31,10 @@ HTML
                 <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 tracking-tight">
                     Market Intelligence Matrix
                 </h1>
-                <p class="text-slate-400 text-sm mt-1">Focus View: Ultra-Speed Intraday, 9EMA & VWAP Convergence</p>
+                <p class="text-slate-400 text-sm mt-1">Focus View: Fault-Tolerant Prices, Pre-Market & 9EMA/VWAP</p>
             </div>
             <div class="flex items-center space-x-6 mt-4 md:mt-0 bg-slate-900 px-4 py-2 rounded-lg border border-slate-700/50">
-                <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Speed Queue...</span>
+                <span id="progressText" class="text-sm font-semibold text-cyan-400 animate-pulse">Initializing Queue...</span>
                 <label class="flex items-center space-x-2 cursor-pointer group">
                     <input type="checkbox" id="autoRefresh" class="form-checkbox rounded bg-slate-800 border-slate-600 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-slate-900 transition duration-150 ease-in-out">
                     <span class="text-sm text-slate-300 group-hover:text-white transition-colors">Auto-Refresh (5m)</span>
@@ -47,7 +48,8 @@ HTML
     </div>
 
     <script>
-        // Scrubbed stockGroups: 100% duplicate free and syntax corrected
+        const API_KEY = 'd9pm1shr01qi2fkvbi30d9pm1shr01qi2fkvbi3g';
+        
         const stockGroups = {
             "Magnificent 7": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA"],
             "Financial Exchange Traded Fund": ["SPY", "DJI", "NYA", "NDX", "QQQ"],
@@ -69,21 +71,20 @@ HTML
             "Internet - Network": ["NBIS", "FFIV"]
         };
 
-        // Built-in Company Dictionary to bypass slow API lookups
         const companyNames = {
             "AAPL": "Apple Inc.", "MSFT": "Microsoft", "GOOGL": "Alphabet", "AMZN": "Amazon", "META": "Meta Platforms", "TSLA": "Tesla", "NVDA": "NVIDIA",
             "SPY": "SPDR S&P 500 ETF", "QQQ": "Invesco QQQ Trust", "DJI": "Dow Jones Industrial Average", "NYA": "NYSE Composite", "NDX": "Nasdaq 100",
-            "NTAP": "NetApp", "DELL": "Dell Technologies", "RMBS": "Rambus", "SNDK": "SanDisk", "SMCI": "Super Micro Computer", "P": "Pandora", "MU": "Micron Technology", "WDC": "Western Digital", "STX": "Seagate Technology", "BLZE": "Backblaze", "TACT": "TransAct Tech", "CRCT": "Cricut", "HPQ": "HP Inc.",
-            "LMT": "Lockheed Martin", "RTX": "RTX Corp", "SPCX": "SpaceX ETF", "GE": "General Electric", "HWM": "Howmet Aerospace", "HEI": "Heico", "RKLB": "Rocket Lab",
-            "SMR": "NuScale Power", "CEG": "Constellation Energy", "OKLO": "Oklo Inc", "NNE": "Nano Nuclear Energy", "LEU": "Centrus Energy", "BWXT": "BWX Technologies", "TLN": "Talen Energy",
-            "KLAC": "KLA Corp", "TSM": "Taiwan Semiconductor", "LRCX": "Lam Research", "AMAT": "Applied Materials", "AEHR": "Aehr Test Systems", "ENTG": "Entegris", "AMKR": "Amkor Technology", "TER": "Teradyne", "AVGO": "Broadcom", "ASML": "ASML Holding", "ONTO": "Onto Innovation", "ATEYY": "Advantest",
+            "NTAP": "NetApp", "DELL": "Dell Technologies", "RMBS": "Rambus", "SNDK": "SanDisk", "SMCI": "Super Micro Computer", "P": "Pandora", "MU": "Micron Technology", "WDC": "Western Digital", "STX": "Seagate Technology", "BLZE": "Backblaze", "HPQ": "HP Inc.",
+            "LMT": "Lockheed Martin", "RTX": "RTX Corp", "SPCX": "SpaceX ETF", "GE": "General Electric", "RKLB": "Rocket Lab",
+            "SMR": "NuScale Power", "CEG": "Constellation Energy", "OKLO": "Oklo Inc", "LEU": "Centrus Energy", "TLN": "Talen Energy",
+            "KLAC": "KLA Corp", "TSM": "Taiwan Semiconductor", "LRCX": "Lam Research", "AMAT": "Applied Materials", "AEHR": "Aehr Test Systems", "TER": "Teradyne", "AVGO": "Broadcom", "ASML": "ASML Holding", "ONTO": "Onto Innovation",
             "EQIX": "Equinix", "DLR": "Digital Realty", "IRM": "Iron Mountain", "AMT": "American Tower",
             "ORCL": "Oracle", "IBM": "IBM", "CRM": "Salesforce", "VRT": "Vertiv Holdings",
-            "AME": "AMETEK", "NVT": "nVent Electric", "SBGSY": "Schneider Electric", "ETN": "Eaton",
+            "AME": "AMETEK", "NVT": "nVent Electric", "ETN": "Eaton",
             "AMD": "Advanced Micro Devices", "CRDO": "Credo Technology", "MRVL": "Marvell Technology", "ARM": "Arm Holdings", "INTC": "Intel", "QRVO": "Qorvo",
             "BE": "Bloom Energy", "GEV": "GE Vernova", "ENTL": "Entel", "REX": "REX American Resources", "FCEL": "FuelCell Energy",
-            "DDOG": "Datadog", "NET": "Cloudflare", "KARO": "Karooooo", "SNOW": "Snowflake", "PLTR": "Palantir",
-            "LLY": "Eli Lilly", "UNH": "UnitedHealth", "JNJ": "Johnson & Johnson", "ABBV": "AbbVie", "MRK": "Merck",
+            "DDOG": "Datadog", "NET": "Cloudflare", "SNOW": "Snowflake", "PLTR": "Palantir",
+            "LLY": "Eli Lilly", "UNH": "UnitedHealth", "JNJ": "Johnson & Johnson",
             "HD": "Home Depot", "MCD": "McDonald's", "NKE": "Nike", "SBUX": "Starbucks", "LOW": "Lowe's",
             "WMT": "Walmart", "PG": "Procter & Gamble", "COST": "Costco", "KO": "Coca-Cola", "PEP": "PepsiCo",
             "JPM": "JPMorgan Chase", "V": "Visa", "MA": "Mastercard", "BAC": "Bank of America", "WFC": "Wells Fargo",
@@ -94,10 +95,48 @@ HTML
         let loadedSymbols = 0;
         for (const syms of Object.values(stockGroups)) totalSymbols += syms.length;
 
-        // --- CONCURRENT YAHOO FETCH ENGINE (Massive Speed Increase) ---
+        async function fetchWithTimeout(url, timeoutMs = 8000) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(url, { signal: controller.signal });
+                clearTimeout(id);
+                return response;
+            } catch (error) {
+                clearTimeout(id);
+                throw error; 
+            }
+        }
+
+        const finnhubQueue = [];
+        let isProcessingFinnhub = false;
+
+        function enqueueFinnhub(endpoint) {
+            return new Promise((resolve) => {
+                finnhubQueue.push({ endpoint, resolve });
+                if (!isProcessingFinnhub) processFinnhubQueue();
+            });
+        }
+
+        async function processFinnhubQueue() {
+            isProcessingFinnhub = true;
+            while (finnhubQueue.length > 0) {
+                const { endpoint, resolve } = finnhubQueue.shift();
+                try {
+                    const response = await fetchWithTimeout(`https://finnhub.io/api/v1${endpoint}&token=${API_KEY}`, 8000);
+                    resolve(response.ok ? await response.json() : null);
+                } catch (e) {
+                    console.error("Finnhub Timeout/Error:", e);
+                    resolve(null); 
+                }
+                await new Promise(r => setTimeout(r, 1050)); 
+            }
+            isProcessingFinnhub = false;
+        }
+
         const yahooQueue = [];
         let isProcessingYahoo = false;
-        const CONCURRENCY_LIMIT = 10; // Load 10 symbols simultaneously
+        const CONCURRENCY_LIMIT = 10; 
         let activeRequests = 0;
 
         function enqueueYahoo(symbol) {
@@ -116,19 +155,15 @@ HTML
                 while (activeRequests < CONCURRENCY_LIMIT && yahooQueue.length > 0) {
                     const task = yahooQueue.shift();
                     activeRequests++;
-                    task().finally(() => {
-                        activeRequests--;
-                    });
+                    task().finally(() => { activeRequests--; });
                 }
-                await new Promise(r => setTimeout(r, 50)); // Tiny loop buffer
+                await new Promise(r => setTimeout(r, 50)); 
             }
             isProcessingYahoo = false;
         }
 
-        // --- FAULT-TOLERANT MULTI-PROXY ROTATOR ---
         async function fetchYahooWithRetry(symbol, retries = 3) {
             let actualSymbol = symbol;
-            // Map common indices to Yahoo's required syntax
             if (symbol === 'DJI') actualSymbol = '^DJI';
             if (symbol === 'NYA') actualSymbol = '^NYA';
             if (symbol === 'NDX') actualSymbol = '^NDX';
@@ -138,7 +173,6 @@ HTML
             const cb = Date.now(); 
             const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${actualSymbol}?interval=${interval}&range=${range}&includePrePost=true&cb=${cb}`;
             
-            // Proxy Rotator: If one server jams, switch to the next instantly
             const proxies = [
                 `https://api.allorigins.win/raw?url=${encodeURIComponent(yfUrl)}`,
                 `https://corsproxy.io/?${encodeURIComponent(yfUrl)}`
@@ -147,11 +181,7 @@ HTML
             for (let i = 0; i < retries; i++) {
                 try {
                     const proxyUrl = proxies[i % proxies.length];
-                    const controller = new AbortController();
-                    const id = setTimeout(() => controller.abort(), 6000); // Strict 6 second timeout
-                    
-                    const response = await fetch(proxyUrl, { signal: controller.signal });
-                    clearTimeout(id);
+                    const response = await fetchWithTimeout(proxyUrl, 6000); 
                     
                     if (!response.ok) throw new Error("Proxy Error");
                     const data = await response.json();
@@ -162,7 +192,6 @@ HTML
                         return {
                             s: 'ok',
                             t: result.timestamp,
-                            o: indicators.open,
                             c: indicators.close,
                             h: indicators.high,
                             l: indicators.low,
@@ -173,9 +202,9 @@ HTML
                 } catch (e) {
                     // Retry silently
                 }
-                await new Promise(r => setTimeout(r, 400)); // Small backoff before retry
+                await new Promise(r => setTimeout(r, 400));
             }
-            return null; // Return null if all retries fail so the UI doesn't freeze
+            return null; 
         }
 
         function initializeUI() {
@@ -207,7 +236,6 @@ HTML
             }
             dashboardEl.innerHTML = htmlContent;
 
-            // Trigger data load simultaneously
             for (const [groupName, symbols] of Object.entries(stockGroups)) {
                 for (const symbol of symbols) {
                     loadStockData(symbol, groupName);
@@ -216,8 +244,12 @@ HTML
         }
 
         async function loadStockData(symbol, groupName) {
-            const intradayCandles = await enqueueYahoo(symbol);
-            renderCard(symbol, intradayCandles, groupName);
+            const [quote, intradayCandles] = await Promise.all([
+                enqueueFinnhub(`/quote?symbol=${symbol}`),
+                enqueueYahoo(symbol)
+            ]);
+
+            renderCard(symbol, quote, intradayCandles, groupName);
             
             loadedSymbols++;
             const progEl = document.getElementById('progressText');
@@ -235,31 +267,24 @@ HTML
             }
         }
 
-        function renderCard(symbol, intradayCandles, groupName) {
+        function renderCard(symbol, quote, intradayCandles, groupName) {
             const safeGroupId = groupName.replace(/\W/g, '');
             const cardEl = document.getElementById(`card-${safeGroupId}-${symbol}`);
             if (!cardEl) return;
 
-            // --- DATA PARSING FROM YAHOO ---
-            let currentPrice = 0;
-            let openPrice = 0;
-
-            if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
+            // --- FAILSAFE PRICE LOGIC ---
+            let currentPrice = quote?.c;
+            let openPrice = quote?.o;
+            
+            if (!currentPrice && intradayCandles && intradayCandles.meta) {
                 currentPrice = intradayCandles.meta.regularMarketPrice || intradayCandles.c[intradayCandles.c.length - 1];
-                openPrice = intradayCandles.meta.chartPreviousClose || currentPrice;
-                
-                // Find true Open from today's first regular candle
-                const lastT = intradayCandles.t[intradayCandles.t.length - 1];
-                const latestDayStr = new Date(lastT * 1000).toDateString();
-                for (let i = 0; i < intradayCandles.t.length; i++) {
-                    if (new Date(intradayCandles.t[i] * 1000).toDateString() === latestDayStr) {
-                        if (intradayCandles.o && intradayCandles.o[i] != null) {
-                            openPrice = intradayCandles.o[i];
-                            break;
-                        }
-                    }
-                }
             }
+            if (!openPrice && intradayCandles && intradayCandles.meta) {
+                openPrice = intradayCandles.meta.chartPreviousClose;
+            }
+            
+            currentPrice = currentPrice || 0;
+            openPrice = openPrice || 0;
 
             let shadowClass = 'shadow-yellow';
             let arrow = '⬌';
@@ -279,7 +304,7 @@ HTML
             const diffSign = priceDiff > 0 ? '+' : (priceDiff < 0 ? '-' : '');
             const diffColor = priceDiff > 0 ? 'text-green-400' : (priceDiff < 0 ? 'text-red-400' : 'text-slate-400');
 
-            // --- PRE-MARKET EXTRACTION ---
+            // --- BULLETPROOF PRE-MARKET EXTRACTION ---
             let preMarketHTML = '';
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastTimestamp = intradayCandles.t[intradayCandles.t.length - 1];
@@ -324,6 +349,7 @@ HTML
 
             if (intradayCandles && intradayCandles.s === 'ok' && intradayCandles.t && intradayCandles.t.length > 0) {
                 const lastCandleDate = new Date(intradayCandles.t[intradayCandles.t.length - 1] * 1000).toDateString();
+                
                 let cumVolPrice = 0;
                 let cumVol = 0;
 
@@ -375,12 +401,16 @@ HTML
                         hasIncreasedVolume = true;
                     }
                     
+                    // --- PINCH / CROSS CONVERGENCE LOGIC (REFINED FOR UPWARD MOMENTUM) ---
                     const diffPct = Math.abs(ema9 - vwap) / vwap;
-                    const isEmaApproachingVwap = (ema9 < vwap && ema9 > prevEma9) || (ema9 > vwap && ema9 < prevEma9);
-                    const isConverging = (diffPct <= 0.0025) && isEmaApproachingVwap;
                     
-                    if (isConverging) {
-                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-fuchsia-400 bg-fuchsia-400/10 px-2 py-0.5 rounded border border-fuchsia-400/30 tracking-wider animate-pulse" title="9EMA & VWAP are within 0.25% and pinching">9EMA-VWAP CONVERGING</span>`;
+                    // 1. Is 9EMA below VWAP?
+                    // 2. Is 9EMA angling upwards?
+                    // 3. Are they pinching within 0.4%?
+                    const isMomentumUpConverging = (ema9 < vwap) && (ema9 > prevEma9) && (diffPct <= 0.004);
+                    
+                    if (isMomentumUpConverging) {
+                        dtSignalHTML = `<span class="text-[10px] font-extrabold text-fuchsia-400 bg-fuchsia-400/10 px-2 py-0.5 rounded border border-fuchsia-400/30 tracking-wider animate-pulse" title="9EMA curling up towards VWAP from below">MOMENTUM UP ⇡ CONVERGING</span>`;
                     } else if (!isAbove && (ema9 < vwap) && isTrendingUp && hasIncreasedVolume) {
                         dtSignalHTML = `<span class="text-[10px] font-extrabold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30 tracking-wider animate-pulse" title="9EMA < VWAP & High Vol Convergence">DAY TRADE BUY Range</span>`;
                     } else {
@@ -433,7 +463,7 @@ HTML
 
         setInterval(() => {
             const autoRefresh = document.getElementById('autoRefresh');
-            if (autoRefresh && autoRefresh.checked && !isProcessingYahoo) {
+            if (autoRefresh && autoRefresh.checked && !isProcessingFinnhub && !isProcessingYahoo) {
                 const progEl = document.getElementById('progressText');
                 if(progEl) {
                     progEl.innerText = 'Auto-refreshing matrix...';
